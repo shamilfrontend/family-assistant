@@ -4,10 +4,8 @@ WORKDIR /app
 RUN apk add --no-cache openssl python3 make g++
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=optional
-
 COPY prisma ./prisma
-RUN npx prisma generate
+RUN npm ci --omit=optional
 
 COPY tsconfig.json ./
 COPY src ./src

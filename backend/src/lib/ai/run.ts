@@ -43,7 +43,7 @@ function draftFromTool(call: LlmToolCall): PreparedDraft | { error: string } {
         payload = parsePurchasePayload(args);
         break;
       case "CREATE_EVENT":
-        payload = parseEventPayload(args);
+        payload = parseEventPayload(args) as Prisma.InputJsonValue;
         break;
       case "CREATE_TASK": {
         const parsed = parseCreateTaskPayload(args);
@@ -128,7 +128,7 @@ export async function runAssistant(actor: Actor, chatId: string, content: string
 
     const assistantText =
       response.content?.trim() ||
-      (prepared.length ? "Подтвердите действие кнопкой." : "Не понял запрос.");
+      (prepared.length ? "Подтвердите действие кнопкой." : "Не поняла запрос.");
 
     const saved = await prisma.$transaction(async (tx) => {
       const userMessage = await tx.chatMessage.create({

@@ -1,7 +1,7 @@
 <template>
   <div class="guest">
     <form class="card stack auth-card" @submit.prevent="onSubmit">
-      <p class="brand-mark">Сем<span>ья</span></p>
+      <p class="brand-mark">Семейный <span>ассистент</span></p>
       <div>
         <h1>Регистрация</h1>
         <p class="muted">Создаётся семья и ваша карточка взрослого</p>

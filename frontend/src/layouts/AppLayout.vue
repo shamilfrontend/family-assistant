@@ -1,9 +1,9 @@
 <template>
   <div class="shell">
     <aside class="sidebar">
-      <p class="brand">Сем<span>ья</span></p>
+      <p class="brand">Семейный <span>ассистент</span></p>
       <nav class="nav">
-        <RouterLink to="/">
+        <RouterLink class="nav-home" to="/">
           <span class="nav-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
               <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z" stroke-linejoin="round" />
@@ -106,7 +106,7 @@
     </div>
 
     <nav class="tabbar" aria-label="Основное меню">
-      <RouterLink to="/">
+      <RouterLink class="nav-home" to="/">
         <span class="tab-pill">
           <span class="nav-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
@@ -205,10 +205,12 @@ const moreOpen = ref(false);
   font-weight: 700;
   font-size: 1.5rem;
   letter-spacing: -0.03em;
+  line-height: 1.05;
   margin: 0 0 28px;
 }
 
 .brand span {
+  display: block;
   color: var(--accent);
 }
 
@@ -240,7 +242,8 @@ const moreOpen = ref(false);
   font-weight: 600;
 }
 
-.nav a.router-link-active {
+.nav a.router-link-active:not(.nav-home),
+.nav a.nav-home.router-link-exact-active {
   background: var(--accent-soft);
   color: var(--accent-text);
 }
@@ -301,7 +304,8 @@ const moreOpen = ref(false);
   border-radius: var(--radius-pill);
 }
 
-.tabbar a.router-link-active .tab-pill,
+.tabbar a.router-link-active:not(.nav-home) .tab-pill,
+.tabbar a.nav-home.router-link-exact-active .tab-pill,
 .tabbar button.active .tab-pill {
   background: var(--accent-soft);
   color: var(--accent-text);
