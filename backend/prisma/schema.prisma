@@ -1,0 +1,391 @@
+// Черновик схемы фазы 1 (подфазы 1.1–1.5).
+// Переедет в backend как есть. Правила (маски, повторы, RBAC) — в data-model.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MemberRole {
+  ADULT
+  CHILD
+}
+
+enum EventType {
+  SCHOOL
+  CLUB
+  WORK
+  BIRTHDAY
+  DOCTOR
+  PICKUP
+  OTHER
+  HEALTH_APPOINTMENT
+}
+
+enum EventRecurrence {
+  NONE
+  WEEKLY
+  YEARLY
+}
+
+enum TaskStatus {
+  OPEN
+  DONE
+}
+
+enum TaskRecurrence {
+  NONE
+  DAILY
+  WEEKLY
+}
+
+enum PurchaseCategory {
+  FOOD
+  HOUSEHOLD
+  PHARMACY
+  OTHER
+}
+
+enum DocumentType {
+  PASSPORT
+  INTERNATIONAL_PASSPORT
+  POLICY
+  LICENSE
+  CERTIFICATE
+  OTHER
+}
+
+enum HealthKind {
+  DOCTOR
+  VACCINATION
+  CHECKUP
+  APPOINTMENT
+}
+
+enum ChatMessageRole {
+  USER
+  ASSISTANT
+}
+
+enum AiDraftStatus {
+  PENDING
+  APPLIED
+  REJECTED
+  EXPIRED
+}
+
+enum AiDraftOperation {
+  CREATE_PURCHASE
+  CREATE_EVENT
+  CREATE_TASK
+  COMPLETE_TASK
+  MARK_PURCHASE_BOUGHT
+}
+
+enum AuditAction {
+  FAMILY_DELETE
+  MEMBER_ROLE_CHANGE
+  DOCUMENT_NUMBER_VIEW
+  HEALTH_READ
+  INVITE_CREATE
+  INVITE_REVOKE
+  INVITE_ACCEPT
+  ACCOUNT_DELETE
+}
+
+model User {
+  id               String    @id @default(uuid()) @db.Uuid
+  email            String    @unique // всегда lowercase
+  /// argon2id
+  passwordHash     String
+  /// Заполняется при регистрации создателя и при accept приглашения на роль ADULT
+  declaredAdultAt  DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  member           Member?
+  sessions         Session[]
+  chat             Chat?
+  createdFamilies  Family[]  @relation("FamilyCreator")
+  createdInvites   Invite[]  @relation("InviteCreator")
+  drafts           AiDraft[]
+  auditLogs        AuditLog[]
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Family {
+  id              String   @id @default(uuid()) @db.Uuid
+  timezone        String
+  createdByUserId String?  @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  createdBy     User?          @relation("FamilyCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  members       Member[]
+  invites       Invite[]
+  events        Event[]
+  tasks         Task[]
+  purchases     Purchase[]
+  documents     Document[]
+  healthRecords HealthRecord[]
+  chats         Chat[]
+  auditLogs     AuditLog[]
+}
+
+model Member {
+  id        String     @id @default(uuid()) @db.Uuid
+  familyId  String     @db.Uuid
+  /// null — карточка без входа (малыш)
+  userId    String?    @unique @db.Uuid
+  name      String
+  role      MemberRole
+  birthDate DateTime   @db.Date
+  phone     String?
+  /// Контакт профиля, не логин
+  email     String?
+  /// Аллергии и особенности — единственное место этих фактов
+  allergies String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  family              Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user                User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  invites             Invite[]
+  eventParticipations EventParticipant[]
+  assignedTasks       Task[]           @relation("TaskAssignee")
+  createdTasks        Task[]           @relation("TaskCreator")
+  addedPurchases      Purchase[]
+  documents           Document[]
+  healthRecords       HealthRecord[]
+  createdEvents       Event[]          @relation("EventCreator")
+
+  @@index([familyId])
+}
+
+model Invite {
+  id              String     @id @default(uuid()) @db.Uuid
+  familyId        String     @db.Uuid
+  role            MemberRole
+  /// Карточка, к которой привяжется аккаунт; null — создать новую
+  memberId        String?    @db.Uuid
+  tokenHash       String     @unique
+  expiresAt       DateTime
+  usedAt          DateTime?
+  revokedAt       DateTime?
+  createdByUserId String?    @db.Uuid
+  createdAt       DateTime   @default(now())
+
+  family    Family  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member    Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  createdBy User?   @relation("InviteCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([familyId])
+}
+
+model Event {
+  id                   String          @id @default(uuid()) @db.Uuid
+  familyId             String          @db.Uuid
+  title                String
+  type                 EventType
+  /// Для allDay — дата в поясе семьи как 00:00 этого пояса, хранится в timestamptz
+  startsAt             DateTime
+  endsAt               DateTime?
+  allDay               Boolean         @default(false)
+  recurrence           EventRecurrence @default(NONE)
+  recurrenceUntil      DateTime?
+  /// Общий id серии. Клиент не шлёт. Сервер в одном insert задаёт id и seriesId = id
+  seriesId             String          @db.Uuid
+  /// Заполнено, если событие получилось из правки «только это». UUID без FK
+  detachedFromSeriesId String?         @db.Uuid
+  remindInUi           Boolean         @default(false)
+  createdByMemberId    String?         @db.Uuid
+  /// Только для HEALTH_APPOINTMENT; источник правды — HealthRecord
+  healthRecordId       String?         @unique @db.Uuid
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  family       Family            @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy    Member?           @relation("EventCreator", fields: [createdByMemberId], references: [id], onDelete: SetNull)
+  healthRecord HealthRecord?     @relation(fields: [healthRecordId], references: [id], onDelete: Cascade)
+  participants EventParticipant[]
+
+  @@index([familyId, startsAt])
+  @@index([seriesId])
+}
+
+model EventParticipant {
+  eventId  String @db.Uuid
+  memberId String @db.Uuid
+
+  event  Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, memberId])
+  @@index([memberId])
+}
+
+model Task {
+  id               String         @id @default(uuid()) @db.Uuid
+  familyId         String         @db.Uuid
+  title            String
+  assigneeMemberId String         @db.Uuid
+  createdByMemberId String?       @db.Uuid
+  dueAt            DateTime
+  status           TaskStatus     @default(OPEN)
+  recurrence       TaskRecurrence @default(NONE)
+  /// Цепочка повтора. Клиент не шлёт. Сервер в одном insert задаёт id и seriesId = id
+  seriesId         String         @db.Uuid
+  completedAt      DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  family    Family  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  assignee  Member  @relation("TaskAssignee", fields: [assigneeMemberId], references: [id], onDelete: Cascade)
+  createdBy Member? @relation("TaskCreator", fields: [createdByMemberId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, status, dueAt])
+  @@index([assigneeMemberId])
+  @@index([seriesId])
+}
+
+model Purchase {
+  id              String           @id @default(uuid()) @db.Uuid
+  familyId        String           @db.Uuid
+  title           String
+  category        PurchaseCategory
+  quantity        Decimal?         @db.Decimal(10, 2)
+  isBought        Boolean          @default(false)
+  addedByMemberId String?          @db.Uuid
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  family  Family  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  addedBy Member? @relation(fields: [addedByMemberId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, isBought])
+}
+
+model Document {
+  id             String       @id @default(uuid()) @db.Uuid
+  familyId       String       @db.Uuid
+  ownerMemberId  String       @db.Uuid
+  type           DocumentType
+  /// Полный номер. В API/логах/промпте не отдаётся (кроме GET карточки взрослому)
+  number         String?
+  expiresAt      DateTime     @db.Date
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  owner  Member @relation(fields: [ownerMemberId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, ownerMemberId])
+  @@index([expiresAt])
+}
+
+model HealthRecord {
+  id               String     @id @default(uuid()) @db.Uuid
+  familyId         String     @db.Uuid
+  memberId         String     @db.Uuid
+  kind             HealthKind
+  /// DOCTOR
+  doctorName       String?
+  specialty        String?
+  phone            String?
+  /// VACCINATION
+  vaccineName      String?
+  vaccinatedAt     DateTime?  @db.Date
+  /// CHECKUP
+  checkupType      String?
+  checkupAt        DateTime?  @db.Date
+  note             String?
+  /// APPOINTMENT
+  appointmentTitle String?
+  appointmentAt    DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  event  Event?
+
+  @@index([familyId, memberId])
+}
+
+model Chat {
+  id          String   @id @default(uuid()) @db.Uuid
+  familyId    String   @db.Uuid
+  ownerUserId String   @unique @db.Uuid
+  createdAt   DateTime @default(now())
+
+  family   Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  owner    User          @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+  drafts   AiDraft[]
+}
+
+model ChatMessage {
+  id        String          @id @default(uuid()) @db.Uuid
+  chatId    String          @db.Uuid
+  role      ChatMessageRole
+  content   String
+  createdAt DateTime        @default(now())
+
+  chat   Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  drafts AiDraft[]
+
+  @@index([chatId, createdAt])
+}
+
+model AiDraft {
+  id        String           @id @default(uuid()) @db.Uuid
+  chatId    String           @db.Uuid
+  userId    String           @db.Uuid
+  /// Assistant-сообщение, которое предложило операцию. Одно сообщение — много черновиков
+  messageId String?          @db.Uuid
+  operation AiDraftOperation
+  payload   Json
+  status    AiDraftStatus    @default(PENDING)
+  expiresAt DateTime
+  appliedAt DateTime?
+  createdAt DateTime         @default(now())
+
+  chat    Chat          @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message ChatMessage?  @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@index([chatId, status])
+  @@index([messageId])
+}
+
+model AuditLog {
+  id         String      @id @default(uuid()) @db.Uuid
+  familyId   String      @db.Uuid
+  userId     String?     @db.Uuid
+  action     AuditAction
+  entityType String
+  entityId   String?
+  /// Без полного номера документа и без тел промптов. Перед ACCOUNT_DELETE / FAMILY_DELETE: actorEmail, actorMemberId
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, createdAt])
+}
