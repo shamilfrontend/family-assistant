@@ -9,3 +9,4 @@ tmp
 backend/tmp
 backend/prisma/*.db
 backend/prisma/*.db-journal
+.idea
