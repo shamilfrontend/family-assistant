@@ -229,7 +229,54 @@
 - **ORM:** Prisma
 - **Контейнеры:** Docker, Docker Compose
 - **Прокси:** Caddy
-- **Хостинг:** VPS, домен [family.shamilfrontend.ru](https://family.shamilfrontend.ru)
+- **Хостинг:** VPS Beget, домен [family.shamilfrontend.ru](https://family.shamilfrontend.ru)
+
+## Деплой
+
+| Параметр | Значение |
+| --- | --- |
+| **Хостинг** | VPS Beget |
+| **Домен** | [family.shamilfrontend.ru](https://family.shamilfrontend.ru) |
+| **Контейнеры** | Docker: frontend, backend, PostgreSQL |
+| **Прокси / HTTPS** | Caddy (TLS и reverse proxy) |
+| **CI/CD** | GitHub Actions → SSH на VPS |
+
+Сборка и запуск на VPS: `docker compose -f docker-compose.prod.yml up -d --build`. Postgres наружу не открывается. `POSTGRES_PASSWORD` и `DEEPSEEK_API_KEY` — GitHub Secrets; CI пишет их в `/opt/family-assistant/.env`.
+
+### Первый деплой
+
+1. DNS: A-запись `family` → IPv4 VPS. Проверка: `dig +short family.shamilfrontend.ru`
+2. На VPS один раз (под `DEPLOY_USER`):
+
+```bash
+sudo apt-get update
+sudo apt-get install -y git ca-certificates curl
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker "$USER"
+sudo ufw allow OpenSSH
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw --force enable
+sudo systemctl disable --now nginx apache2 2>/dev/null || true
+```
+
+Перелогинься, проверь `docker compose version`. Публичный ключ от `DEPLOY_SSH_KEY` — в `~/.ssh/authorized_keys`.
+
+3. GitHub Secrets:
+
+| Secret | Назначение |
+| --- | --- |
+| `DEPLOY_HOST` | Хост VPS |
+| `DEPLOY_PORT` | SSH-порт (`22`, если не меняли) |
+| `DEPLOY_USER` | Пользователь SSH |
+| `DEPLOY_SSH_KEY` | Приватный ключ для деплоя |
+| `POSTGRES_PASSWORD` | `openssl rand -hex 24` |
+| `DEEPSEEK_API_KEY` | ключ DeepSeek API |
+
+4. Push в `main` → Actions → SSH → `git clone`/`pull` в `/opt/family-assistant` → `.env` → `docker compose -f docker-compose.prod.yml up -d --build`
+5. Проверка: [https://family.shamilfrontend.ru](https://family.shamilfrontend.ru)
+
+Если TLS не выдался — DNS ещё не дошёл или 80/443 закрыты.
 
 ## Как запустить
 

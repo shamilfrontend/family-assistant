@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install backend
+        run: npm ci
+        working-directory: backend
+
+      - name: Install frontend
+        run: npm ci
+        working-directory: frontend
+
+      - name: Typecheck backend
+        run: npx tsc --noEmit
+        working-directory: backend
+
+      - name: Typecheck frontend
+        run: npx vue-tsc --noEmit
+        working-directory: frontend
+
+  test:
+    needs: check
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: family
+          POSTGRES_PASSWORD: family
+          POSTGRES_DB: family
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U family -d family"
+          --health-interval 3s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend
+        run: npm ci
+        working-directory: backend
+
+      - name: API tests
+        run: npm test
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://family:family@localhost:5432/family
+
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          PORT: ${{ secrets.DEPLOY_PORT }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$KEY" | tr -d '\r' > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          umask 077
+          {
+            printf 'NODE_ENV=production\n'
+            printf 'PORT=3000\n'
+            printf 'APP_ORIGIN=https://family.shamilfrontend.ru\n'
+            printf 'COOKIE_SECURE=true\n'
+            printf 'POSTGRES_PASSWORD=%s\n' "$POSTGRES_PASSWORD"
+            printf 'DEEPSEEK_API_KEY=%s\n' "$DEEPSEEK_API_KEY"
+          } > /tmp/family-assistant.env
+
+          ssh -o StrictHostKeyChecking=accept-new \
+            -p "${PORT}" \
+            -i ~/.ssh/deploy_key \
+            "${USER}@${HOST}" \
+            'set -euo pipefail
+            if [ ! -d /opt/family-assistant/.git ]; then
+              sudo mkdir -p /opt/family-assistant
+              sudo chown "$(whoami):$(whoami)" /opt/family-assistant
+              git clone https://github.com/shamilfrontend/family-assistant.git /opt/family-assistant
+            fi
+            cd /opt/family-assistant
+            git pull --ff-only origin main'
+
+          scp -o StrictHostKeyChecking=accept-new \
+            -P "${PORT}" \
+            -i ~/.ssh/deploy_key \
+            /tmp/family-assistant.env \
+            "${USER}@${HOST}:/opt/family-assistant/.env"
+
+          ssh -o StrictHostKeyChecking=accept-new \
+            -p "${PORT}" \
+            -i ~/.ssh/deploy_key \
+            "${USER}@${HOST}" \
+            'set -euo pipefail
+            chmod 600 /opt/family-assistant/.env
+            cd /opt/family-assistant
+            docker compose -f docker-compose.prod.yml up -d --build'
