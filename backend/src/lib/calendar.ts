@@ -70,6 +70,7 @@ export async function createEventRow(
     remindInUi: boolean;
     createdByMemberId: string | null;
     participantIds: string[];
+    healthRecordId?: string | null;
   },
 ): Promise<EventWithParticipants> {
   const id = randomUUID();
@@ -88,6 +89,7 @@ export async function createEventRow(
       detachedFromSeriesId: data.detachedFromSeriesId ?? null,
       remindInUi: data.remindInUi,
       createdByMemberId: data.createdByMemberId,
+      healthRecordId: data.healthRecordId ?? null,
       participants: { create: data.participantIds.map((memberId) => ({ memberId })) },
     },
     include: { participants: true },

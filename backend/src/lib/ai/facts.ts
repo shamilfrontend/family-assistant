@@ -2,6 +2,7 @@ import { DateTime } from "luxon";
 import { prisma } from "../prisma.js";
 import { expandOccurrences } from "../recurrence.js";
 import { expiresSoon } from "../documents.js";
+import { compactHealthFact } from "../health.js";
 import { formatDate } from "../validate.js";
 import type { Actor } from "../serialize.js";
 import { startOfToday } from "../time.js";
@@ -13,11 +14,12 @@ export async function buildFacts(actor: Actor, timezone: string): Promise<string
     actor.role === "CHILD" ? { participants: { some: { memberId: actor.memberId } } } : {};
   const taskFilter = actor.role === "CHILD" ? { assigneeMemberId: actor.memberId } : {};
   const docFilter = actor.role === "CHILD" ? { ownerMemberId: actor.memberId } : {};
+  const healthFilter = actor.role === "CHILD" ? { memberId: actor.memberId } : {};
 
-  const [members, events, purchases, tasks, documents] = await Promise.all([
+  const [members, events, purchases, tasks, documents, healthRecords] = await Promise.all([
     prisma.member.findMany({
       where: { familyId: actor.familyId },
-      select: { id: true, name: true, role: true },
+      select: { id: true, name: true, role: true, allergies: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.event.findMany({
@@ -41,6 +43,10 @@ export async function buildFacts(actor: Actor, timezone: string): Promise<string
       where: { familyId: actor.familyId, ...docFilter },
       orderBy: { expiresAt: "asc" },
     }),
+    prisma.healthRecord.findMany({
+      where: { familyId: actor.familyId, ...healthFilter },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
 
   const memberById = new Map(members.map((m) => [m.id, m.name]));
@@ -58,6 +64,10 @@ export async function buildFacts(actor: Actor, timezone: string): Promise<string
         name: memberById.get(id) ?? id,
       })),
     }));
+
+  const allergyScope = members.filter(
+    (m) => (actor.role === "ADULT" || m.id === actor.memberId) && m.allergies,
+  );
 
   const facts = {
     members: members.map((m) => ({ id: m.id, name: m.name, role: m.role })),
@@ -91,6 +101,17 @@ export async function buildFacts(actor: Actor, timezone: string): Promise<string
         name: memberById.get(d.ownerMemberId) ?? d.ownerMemberId,
       },
     })),
+    allergies: allergyScope.map((m) => ({
+      memberId: m.id,
+      name: m.name,
+      allergies: m.allergies,
+    })),
+    health: healthRecords.map((record) =>
+      compactHealthFact(record, {
+        id: record.memberId,
+        name: memberById.get(record.memberId) ?? record.memberId,
+      }),
+    ),
   };
 
   return `Facts (JSON, только эти данные; не выдумывай):\n${JSON.stringify(facts)}`;

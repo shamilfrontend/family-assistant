@@ -17,6 +17,12 @@
       <p v-if="notice" class="alert alert--ok">{{ notice }}</p>
       <p v-if="event.type === 'DOCTOR'" class="muted">Это событие календаря, не мед. карта.</p>
       <p v-if="event.type === 'HEALTH_APPOINTMENT'" class="muted">Приём из здоровья — только просмотр.</p>
+      <RouterLink
+        v-if="event.type === 'HEALTH_APPOINTMENT' && healthMemberId"
+        :to="`/health/${healthMemberId}`"
+      >
+        Открыть в здоровье
+      </RouterLink>
       <p class="when">{{ when }}</p>
       <p class="muted">Участники: {{ participantNames }}</p>
 
@@ -80,6 +86,7 @@ const tz = computed(() => auth.me?.family.timezone ?? "UTC");
 const canEdit = computed(
   () => auth.isAdult && event.value && event.value.type !== "HEALTH_APPOINTMENT",
 );
+const healthMemberId = computed(() => event.value?.participantIds[0] ?? "");
 
 const when = computed(() => {
   if (!event.value) return "";

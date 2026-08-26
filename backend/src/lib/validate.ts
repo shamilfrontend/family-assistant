@@ -2,6 +2,7 @@ import {
   DocumentType,
   EventRecurrence,
   EventType,
+  HealthKind,
   MemberRole,
   PurchaseCategory,
   TaskRecurrence,
@@ -148,6 +149,15 @@ export function parseDocumentType(value: unknown): DocumentType {
     throw validation("Невалидный тип документа");
   }
   return value as DocumentType;
+}
+
+const HEALTH_KINDS = new Set<string>(Object.values(HealthKind));
+
+export function parseHealthKind(value: unknown): HealthKind {
+  if (typeof value !== "string" || !HEALTH_KINDS.has(value)) {
+    throw validation("Вид записи: DOCTOR, VACCINATION, CHECKUP или APPOINTMENT");
+  }
+  return value as HealthKind;
 }
 
 export function parseDateOnly(value: unknown, field: string): Date {

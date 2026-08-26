@@ -9,6 +9,7 @@ import { remindersRouter } from "./routes/reminders.js";
 import { purchasesRouter } from "./routes/purchases.js";
 import { tasksRouter } from "./routes/tasks.js";
 import { documentsRouter } from "./routes/documents.js";
+import { healthRecordsRouter } from "./routes/health-records.js";
 import { chatsRouter } from "./routes/chats.js";
 import { errorHandler } from "./middleware/error.js";
 import { AppError } from "./lib/errors.js";
@@ -29,6 +30,7 @@ export function createApp() {
   app.use("/api/v1/purchases", purchasesRouter);
   app.use("/api/v1/tasks", tasksRouter);
   app.use("/api/v1/documents", documentsRouter);
+  app.use("/api/v1/health-records", healthRecordsRouter);
   app.use("/api/v1/chats", chatsRouter);
 
   app.use("/api", (_req, _res, next) => {

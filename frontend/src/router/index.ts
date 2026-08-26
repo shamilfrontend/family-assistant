@@ -30,6 +30,8 @@ const router = createRouter({
           meta: { adult: true },
         },
         { path: "documents/:id", component: () => import("@/views/DocumentDetailView.vue") },
+        { path: "health", component: () => import("@/views/HealthView.vue") },
+        { path: "health/:memberId", component: () => import("@/views/HealthMemberView.vue") },
         { path: "chat", component: () => import("@/views/ChatView.vue") },
         {
           path: "chats/:memberId",

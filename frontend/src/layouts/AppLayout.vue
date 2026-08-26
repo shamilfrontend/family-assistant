@@ -58,6 +58,14 @@
           </span>
           {{ auth.isAdult ? "Документы" : "Мои документы" }}
         </RouterLink>
+        <RouterLink to="/health">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+              <path d="M9 3.5h6v5.5h5.5v6H15V21H9v-6H3.5V9H9V3.5Z" stroke-linejoin="round" />
+            </svg>
+          </span>
+          {{ auth.isAdult ? "Здоровье" : "Моё здоровье" }}
+        </RouterLink>
         <template v-if="auth.isAdult">
           <RouterLink to="/family">
             <span class="nav-icon" aria-hidden="true">
@@ -171,6 +179,9 @@
         </RouterLink>
         <RouterLink to="/documents" @click="moreOpen = false">
           {{ auth.isAdult ? "Документы" : "Мои документы" }}
+        </RouterLink>
+        <RouterLink to="/health" @click="moreOpen = false">
+          {{ auth.isAdult ? "Здоровье" : "Моё здоровье" }}
         </RouterLink>
         <template v-if="auth.isAdult">
           <RouterLink to="/family" @click="moreOpen = false">Семья</RouterLink>

@@ -396,4 +396,63 @@ describe("chats and AI drafts", () => {
     expect(factsMessage?.content).not.toContain(secret);
     expect(factsMessage?.content).toContain("PASSPORT");
   });
+
+  it("puts vaccinations into facts and does not offer health-write tools", async () => {
+    const { sid, memberId } = await register();
+    const child = await inviteChild(sid);
+    await request(app).post("/api/v1/health-records").set("Cookie", sid).send({
+      memberId: child.memberId,
+      kind: "VACCINATION",
+      vaccineName: "АКДС",
+      vaccinatedAt: "2024-04-01",
+    });
+    await request(app).post("/api/v1/health-records").set("Cookie", sid).send({
+      memberId,
+      kind: "VACCINATION",
+      vaccineName: "SECRET_VAX_ANNA",
+      vaccinatedAt: "2024-01-01",
+    });
+    await request(app).patch(`/api/v1/members/${memberId}`).set("Cookie", sid).send({
+      allergies: "пыльца",
+    });
+
+    const chats = await request(app).get("/api/v1/chats").set("Cookie", sid);
+    const adultChat = chats.body.items.find((c: { memberId: string }) => c.memberId === memberId);
+    mockedComplete.mockResolvedValue({ content: "у Димы АКДС", toolCalls: [] });
+
+    const sent = await request(app)
+      .post(`/api/v1/chats/${adultChat.chatId}/messages`)
+      .set("Cookie", sid)
+      .send({ content: "Какие прививки у Димы?" });
+    expect(sent.status).toBe(201);
+
+    const tools = mockedComplete.mock.calls[0][1] as Array<{ function: { name: string } }>;
+    expect(tools.map((t) => t.function.name).join(",")).not.toMatch(/health|vaccin|doctor/i);
+    expect(tools.some((t) => t.function.name.startsWith("propose_create_"))).toBe(true);
+
+    const factsMessage = mockedComplete.mock.calls[0][0].find(
+      (m: { role: string; content: string | null }) =>
+        m.role === "system" && (m.content ?? "").includes("Facts (JSON"),
+    );
+    expect(factsMessage?.content).toContain("АКДС");
+    expect(factsMessage?.content).toContain("SECRET_VAX_ANNA");
+    expect(factsMessage?.content).toContain("пыльца");
+
+    const childChats = await request(app).get("/api/v1/chats").set("Cookie", child.sid);
+    mockedComplete.mockClear();
+    mockedComplete.mockResolvedValue({ content: "есть корь", toolCalls: [] });
+    const childSent = await request(app)
+      .post(`/api/v1/chats/${childChats.body.items[0].chatId}/messages`)
+      .set("Cookie", child.sid)
+      .send({ content: "Какие прививки?" });
+    expect(childSent.status).toBe(201);
+
+    const childFacts = mockedComplete.mock.calls[0][0].find(
+      (m: { role: string; content: string | null }) =>
+        m.role === "system" && (m.content ?? "").includes("Facts (JSON"),
+    );
+    expect(childFacts?.content).toContain("АКДС");
+    expect(childFacts?.content).not.toContain("SECRET_VAX_ANNA");
+    expect(childFacts?.content).not.toContain("пыльца");
+  });
 });
