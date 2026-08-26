@@ -1,12 +1,14 @@
+import type { Document, Task } from "@prisma/client";
 import { DateTime } from "luxon";
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { expandOccurrences, type Occurrence } from "../lib/recurrence.js";
-import { serializeDocument, expiresSoon } from "../lib/documents.js";
+import { serializeDocument } from "../lib/documents.js";
 import { serializeHealthReminder, type HealthReminder } from "../lib/health.js";
 import { serializeTask } from "../lib/tasks.js";
 import { startOfToday } from "../lib/time.js";
+import { formatDate } from "../lib/validate.js";
 
 export const remindersRouter = Router();
 
@@ -32,7 +34,6 @@ remindersRouter.get("/", requireAuth, async (req, res, next) => {
     const today = startOfToday(tz);
     const todayEnd = today.endOf("day");
     const soonEnd = today.plus({ days: 7 }).endOf("day");
-    const docsUntil = today.plus({ days: 30 }).endOf("day");
     const todayYmd = today.toFormat("yyyy-MM-dd");
     const soonYmd = today.plus({ days: 7 }).toFormat("yyyy-MM-dd");
     const dateFrom = dateOnlyUtc(todayYmd);
@@ -59,7 +60,7 @@ remindersRouter.get("/", requireAuth, async (req, res, next) => {
         where: {
           familyId: actor.familyId,
           status: "OPEN",
-          dueAt: { gte: today.toJSDate(), lte: todayEnd.toJSDate() },
+          dueAt: { gte: today.toJSDate(), lte: soonEnd.toJSDate() },
           ...taskFilter,
         },
         orderBy: { dueAt: "asc" },
@@ -67,7 +68,7 @@ remindersRouter.get("/", requireAuth, async (req, res, next) => {
       prisma.document.findMany({
         where: {
           familyId: actor.familyId,
-          expiresAt: { gte: today.toJSDate(), lte: docsUntil.toJSDate() },
+          expiresAt: { gte: dateFrom, lte: dateTo },
           ...docFilter,
         },
         orderBy: { expiresAt: "asc" },
@@ -99,8 +100,23 @@ remindersRouter.get("/", requireAuth, async (req, res, next) => {
       for (const occ of expandOccurrences(event, today, soonEnd, tz)) {
         const start = DateTime.fromISO(occ.occurrenceStart, { setZone: true });
         if (start >= today && start <= todayEnd) todayEvents.push(occ);
-        if (event.remindInUi) soonEvents.push(occ);
+        else if (start > todayEnd && start <= soonEnd) soonEvents.push(occ);
       }
+    }
+
+    const todayTasks: Task[] = [];
+    const soonTasks: Task[] = [];
+    for (const task of tasks) {
+      const due = DateTime.fromJSDate(task.dueAt, { zone: "utc" }).setZone(tz);
+      if (due >= today && due <= todayEnd) todayTasks.push(task);
+      else soonTasks.push(task);
+    }
+
+    const todayDocs: Document[] = [];
+    const soonDocs: Document[] = [];
+    for (const doc of documents) {
+      if (formatDate(doc.expiresAt) === todayYmd) todayDocs.push(doc);
+      else soonDocs.push(doc);
     }
 
     const todayHealth: HealthReminder[] = [];
@@ -118,15 +134,15 @@ remindersRouter.get("/", requireAuth, async (req, res, next) => {
     res.json({
       today: {
         events: todayEvents.sort(byStart),
-        tasks: tasks.map(serializeTask),
+        tasks: todayTasks.map(serializeTask),
         health: todayHealth.sort(byAt),
+        documents: todayDocs.map((doc) => serializeDocument(doc, tz, { includeNumber: false })),
       },
       soon: {
         events: soonEvents.sort(byStart),
-        documents: documents
-          .filter((doc) => expiresSoon(doc.expiresAt, tz))
-          .map((doc) => serializeDocument(doc, tz, { includeNumber: false })),
+        tasks: soonTasks.map(serializeTask),
         health: soonHealth.sort(byAt),
+        documents: soonDocs.map((doc) => serializeDocument(doc, tz, { includeNumber: false })),
       },
     });
   } catch (err) {

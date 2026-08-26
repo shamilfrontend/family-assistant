@@ -171,4 +171,33 @@ describe("tasks", () => {
     expect(list.body.items).toHaveLength(2);
     expect(list.body.items.filter((t: { status: string }) => t.status === "OPEN")).toHaveLength(2);
   });
+
+  it("puts open tasks into reminders today and soon", async () => {
+    const { sid, memberId } = await register();
+    const today = DateTime.now().setZone(tz).set({ hour: 18, minute: 0, second: 0, millisecond: 0 });
+
+    await request(app).post("/api/v1/tasks").set("Cookie", sid).send({
+      title: "Сегодня портфель",
+      assigneeMemberId: memberId,
+      dueAt: today.toUTC().toISO(),
+      recurrence: "NONE",
+    });
+    await request(app).post("/api/v1/tasks").set("Cookie", sid).send({
+      title: "На неделе",
+      assigneeMemberId: memberId,
+      dueAt: today.plus({ days: 3 }).toUTC().toISO(),
+      recurrence: "NONE",
+    });
+    await request(app).post("/api/v1/tasks").set("Cookie", sid).send({
+      title: "Позже",
+      assigneeMemberId: memberId,
+      dueAt: today.plus({ days: 10 }).toUTC().toISO(),
+      recurrence: "NONE",
+    });
+
+    const reminders = await request(app).get("/api/v1/reminders").set("Cookie", sid);
+    expect(reminders.status).toBe(200);
+    expect(reminders.body.today.tasks.map((t: { title: string }) => t.title)).toEqual(["Сегодня портфель"]);
+    expect(reminders.body.soon.tasks.map((t: { title: string }) => t.title)).toEqual(["На неделе"]);
+  });
 });

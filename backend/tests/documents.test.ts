@@ -144,8 +144,8 @@ describe("documents", () => {
 
   it("puts expiring documents into reminders.soon", async () => {
     const { sid, memberId } = await register();
-    const soon = DateTime.now().setZone(tz).plus({ days: 12 }).toISODate();
-    const later = DateTime.now().setZone(tz).plus({ days: 40 }).toISODate();
+    const soon = DateTime.now().setZone(tz).plus({ days: 3 }).toISODate();
+    const later = DateTime.now().setZone(tz).plus({ days: 12 }).toISODate();
 
     await request(app).post("/api/v1/documents").set("Cookie", sid).send({
       ownerMemberId: memberId,
@@ -162,6 +162,7 @@ describe("documents", () => {
 
     const reminders = await request(app).get("/api/v1/reminders").set("Cookie", sid);
     expect(reminders.status).toBe(200);
+    expect(reminders.body.today.documents).toEqual([]);
     expect(reminders.body.soon.documents).toHaveLength(1);
     expect(reminders.body.soon.documents[0].type).toBe("PASSPORT");
     expect(reminders.body.soon.documents[0].number).toBeUndefined();

@@ -289,13 +289,15 @@ describe("events and reminders", () => {
       allDay: false,
       recurrence: "NONE",
       participantIds: [memberId],
-      remindInUi: true,
+      remindInUi: false,
     });
 
     const res = await request(app).get("/api/v1/reminders").set("Cookie", sid);
     expect(res.status).toBe(200);
     expect(res.body.today.tasks).toEqual([]);
     expect(res.body.today.health).toEqual([]);
+    expect(res.body.today.documents).toEqual([]);
+    expect(res.body.soon.tasks).toEqual([]);
     expect(res.body.soon.documents).toEqual([]);
     expect(res.body.soon.health).toEqual([]);
     expect(res.body.today.events.map((e: Occ) => e.title)).toContain("Сегодня работа");

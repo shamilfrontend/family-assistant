@@ -267,21 +267,25 @@ Query `GET /health-records`: `memberId?`. Ребёнок — только сво
   "today": {
     "events": [],
     "tasks": [],
-    "health": []
+    "health": [],
+    "documents": []
   },
   "soon": {
     "events": [],
-    "documents": [],
-    "health": []
+    "tasks": [],
+    "health": [],
+    "documents": []
   }
 }
 ```
 
-- `today.events` — вхождения на сегодня (ребёнок — свои). Без `HEALTH_APPOINTMENT`: приёмы из здоровья — в `health`.
+- `today.events` — вхождения на сегодня (ребёнок — свои). Без `HEALTH_APPOINTMENT`: приёмы из здоровья — в `health`. Не зависит от `remindInUi`.
 - `today.tasks` — открытые дела со сроком сегодня (1.4; до 1.4 — `[]`).
 - `today.health` — приёмы, прививки и осмотры на сегодня (ребёнок — свои). `{ id, kind, title, at, member: { id, name }, eventId }`. `at` — ISO у приёма, `YYYY-MM-DD` у прививки и осмотра.
-- `soon.events` — с `remindInUi`, сегодня … +7 дней. Без `HEALTH_APPOINTMENT`.
-- `soon.documents` — истекают в ближайшие 30 дней (1.4; маска, без номера).
+- `today.documents` — истекают сегодня (1.4; маска, без номера).
+- `soon.events` — вхождения завтра … +7 дней. Без `HEALTH_APPOINTMENT`. Не зависит от `remindInUi`.
+- `soon.tasks` — открытые дела со сроком завтра … +7 дней.
+- `soon.documents` — истекают завтра … +7 дней (1.4; маска, без номера). Индикатор `expiresSoon` у документов по-прежнему 30 дней.
 - `soon.health` — приёмы, прививки и осмотры на завтра … +7 дней (1.5). Врач (`DOCTOR`) и прошлые даты не входят. Аудит `HEALTH_READ` не пишется.
 
 ---
