@@ -1,5 +1,5 @@
 <template>
-  <div class="brand-logo" :class="`brand-logo--${variant}`">
+  <component :is="to ? RouterLink : 'div'" v-bind="to ? { to } : {}" class="brand-logo" :class="`brand-logo--${variant}`">
     <svg class="brand-logo__icon" viewBox="0 0 32 32" aria-hidden="true">
       <rect width="32" height="32" rx="8" fill="var(--accent)" />
       <path
@@ -12,13 +12,16 @@
       />
     </svg>
     <p class="brand-logo__name">Семейный <span>ассистент</span></p>
-  </div>
+  </component>
 </template>
 
 <script setup lang="ts">
+import { RouterLink } from "vue-router";
+
 withDefaults(
   defineProps<{
-    variant?: "nav" | "auth";
+    variant?: "nav" | "auth" | "header";
+    to?: string;
   }>(),
   { variant: "auth" },
 );
@@ -79,5 +82,24 @@ withDefaults(
 
 .brand-logo--auth .brand-logo__name {
   font-size: 2rem;
+}
+
+.brand-logo--header {
+  gap: 10px;
+  margin: 0;
+}
+
+.brand-logo--header .brand-logo__icon {
+  width: 36px;
+  height: 36px;
+}
+
+.brand-logo--header .brand-logo__name {
+  font-size: 1.15rem;
+}
+
+a.brand-logo {
+  text-decoration: none;
+  width: fit-content;
 }
 </style>

@@ -1,7 +1,7 @@
 <template>
   <div class="guest">
     <form class="card stack auth-card" @submit.prevent="onSubmit">
-      <BrandLogo />
+      <BrandLogo to="/" />
       <div>
         <h1>Вход</h1>
         <p class="muted">Семейный ассистент для общего календаря</p>

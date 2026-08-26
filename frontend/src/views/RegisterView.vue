@@ -1,7 +1,7 @@
 <template>
   <div class="guest">
     <form class="card stack auth-card" @submit.prevent="onSubmit">
-      <BrandLogo />
+      <BrandLogo to="/" />
       <div>
         <h1>Регистрация</h1>
         <p class="muted">Создаётся семья и ваша карточка взрослого</p>
