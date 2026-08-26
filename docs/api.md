@@ -108,7 +108,7 @@ PATCH `scope=this` обязан передать `occurrenceStart` того вх
 | --- | --- | --- | --- | --- |
 | GET | `/family` | 1.1 | оба | `{ id, timezone, createdAt }` |
 | PATCH | `/family` | 1.1 | взрослый | `{ timezone }`. timestamptz не переписываются; all-day могут съехать на соседнюю дату |
-| GET | `/family/deletion-preview` | 1.1 | взрослый | Счётчики: members, events, tasks, purchases, documents, healthRecords, chats |
+| GET | `/family/deletion-preview` | 1.1 | взрослый | Счётчики: members, events, tasks, purchases, documents, healthRecords, expenses, chats |
 | DELETE | `/family` | 1.1 | взрослый | Тело ниже |
 
 ```json
@@ -121,6 +121,7 @@ PATCH `scope=this` обязан передать `occurrenceStart` того вх
     "purchases",
     "documents",
     "healthRecords",
+    "expenses",
     "chats"
   ]
 }
@@ -234,6 +235,26 @@ Query `GET /health-records`: `memberId?`. Ребёнок — только сво
 
 ---
 
+## Бюджет
+
+Валюта — рубли, отдельного поля нет. Месяц — query `month=YYYY-MM` в поясе семьи; без query — текущий месяц. Ребёнок — `403` на все пути.
+
+| Метод | Путь | Подфаза | Кто | Примечание |
+| --- | --- | --- | --- | --- |
+| GET | `/budget/summary` | 2 | взрослый | `{ month, total, byCategory: [{ id, name, total }], byMember: [{ memberId, name, total }] }` |
+| GET | `/budget/expenses` | 2 | взрослый | `{ items }` за месяц |
+| POST | `/budget/expenses` | 2 | взрослый | `{ title, amount, categoryId, spentByMemberId, spentAt? }` — `spentAt` по умолчанию сегодня семьи; `amount` > 0 |
+| PATCH | `/budget/expenses/:id` | 2 | взрослый | частичные те же поля |
+| DELETE | `/budget/expenses/:id` | 2 | взрослый | |
+| GET | `/budget/categories` | 2 | взрослый | `{ items: [{ id, name, sortOrder }] }` |
+| POST | `/budget/categories` | 2 | взрослый | `{ name }` |
+| PATCH | `/budget/categories/:id` | 2 | взрослый | `{ name?, sortOrder? }` |
+| DELETE | `/budget/categories/:id` | 2 | взрослый | `conflict`, если есть расходы |
+
+`spentByMemberId` — любая карточка этой семьи. Сумма в ответах — число с двумя знаками.
+
+---
+
 ## Напоминания
 
 | Метод | Путь | Подфаза | Кто | Примечание |
@@ -281,10 +302,10 @@ Query `GET /health-records`: `memberId?`. Ребёнок — только сво
 Apply проверяет роль так же, как соответствующий POST/PATCH:
 
 - `CREATE_PURCHASE`, `MARK_PURCHASE_BOUGHT` — оба (ребёнок — по правилам PATCH покупок)
-- `CREATE_EVENT`, `CREATE_TASK` — взрослый; ребёнок — `forbidden`
+- `CREATE_EVENT`, `CREATE_TASK`, `CREATE_EXPENSE` — взрослый; ребёнок — `forbidden`
 - `COMPLETE_TASK` — ребёнок только своё дело
 
-Операции черновика: 1.3 — `CREATE_PURCHASE`; 1.4 — `CREATE_EVENT`, `CREATE_TASK`, `COMPLETE_TASK`, `MARK_PURCHASE_BOUGHT`. Иное — не создаётся. Категория покупки, если модель не указала — `OTHER`. Несколько черновиков одного ответа ссылаются на одно assistant-сообщение (`AiDraft.messageId`).
+Операции черновика: 1.3 — `CREATE_PURCHASE`; 1.4 — `CREATE_EVENT`, `CREATE_TASK`, `COMPLETE_TASK`, `MARK_PURCHASE_BOUGHT`; 2 — `CREATE_EXPENSE`. Иное — не создаётся. Категория покупки, если модель не указала — `OTHER`. Несколько черновиков одного ответа ссылаются на одно assistant-сообщение (`AiDraft.messageId`).
 
 ---
 

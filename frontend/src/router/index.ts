@@ -35,6 +35,7 @@ const router = createRouter({
           component: () => import("@/views/HealthMemberView.vue"),
           meta: { auth: true },
         },
+        { path: "budget", component: () => import("@/views/BudgetView.vue"), meta: { auth: true, adult: true } },
         { path: "chat", component: () => import("@/views/ChatView.vue"), meta: { auth: true } },
         {
           path: "chats/:memberId",

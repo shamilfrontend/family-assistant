@@ -42,5 +42,6 @@ export const DELETION_KEYS = [
   "purchases",
   "documents",
   "healthRecords",
+  "expenses",
   "chats",
 ] as const;

@@ -85,6 +85,7 @@ describe("chats and AI drafts", () => {
     await prisma.$executeRawUnsafe(`
       TRUNCATE TABLE
         "AiDraft", "ChatMessage", "Chat", "AuditLog", "HealthRecord",
+        "Expense", "BudgetCategory",
         "Document", "Purchase", "Task", "EventParticipant", "Event",
         "Invite", "Session", "Member", "Family", "User"
       CASCADE
@@ -475,5 +476,91 @@ describe("chats and AI drafts", () => {
     expect(childFacts?.content).toContain("АКДС");
     expect(childFacts?.content).not.toContain("SECRET_VAX_ANNA");
     expect(childFacts?.content).not.toContain("пыльца");
+  });
+
+  it("lets an adult apply an expense draft and keeps budget out of child facts", async () => {
+    const { sid, memberId } = await register();
+    const child = await inviteChild(sid);
+    const categories = await request(app).get("/api/v1/budget/categories").set("Cookie", sid);
+    const food = categories.body.items.find((c: { name: string }) => c.name === "Продукты");
+    const adultChats = await request(app).get("/api/v1/chats").set("Cookie", sid);
+    const adultChatId = adultChats.body.items.find(
+      (c: { memberId: string }) => c.memberId === memberId,
+    ).chatId as string;
+
+    mockedComplete.mockImplementation(async (messages) => {
+      if (messages.some((m) => m.role === "tool")) {
+        return { content: "Записать расход?", toolCalls: [] };
+      }
+      return {
+        content: null,
+        toolCalls: [
+          {
+            id: "call_expense",
+            name: "propose_create_expense",
+            arguments: JSON.stringify({
+              title: "Молоко",
+              amount: 89.5,
+              categoryId: food.id,
+              spentByMemberId: memberId,
+            }),
+          },
+        ],
+      };
+    });
+
+    const sent = await request(app)
+      .post(`/api/v1/chats/${adultChatId}/messages`)
+      .set("Cookie", sid)
+      .send({ content: "запиши 89.5 за молоко" });
+    expect(sent.status).toBe(201);
+    expect(sent.body.drafts[0].operation).toBe("CREATE_EXPENSE");
+    const applied = await request(app)
+      .post(`/api/v1/chats/${adultChatId}/drafts/${sent.body.drafts[0].id}/apply`)
+      .set("Cookie", sid);
+    expect(applied.status).toBe(200);
+    expect(applied.body.entity.title).toBe("Молоко");
+    expect(applied.body.entity.amount).toBe(89.5);
+
+    const tools = mockedComplete.mock.calls[0][1] as Array<{ function: { name: string } }>;
+    expect(tools.some((t) => t.function.name === "propose_create_expense")).toBe(true);
+
+    const childChats = await request(app).get("/api/v1/chats").set("Cookie", child.sid);
+    mockedComplete.mockReset();
+    mockedComplete.mockResolvedValue({ content: "ок", toolCalls: [] });
+    const childSent = await request(app)
+      .post(`/api/v1/chats/${childChats.body.items[0].chatId}/messages`)
+      .set("Cookie", child.sid)
+      .send({ content: "сколько потратили?" });
+    expect(childSent.status).toBe(201);
+
+    const childFacts = mockedComplete.mock.calls[0][0].find(
+      (m: { role: string; content: string | null }) =>
+        m.role === "system" && (m.content ?? "").includes("Facts (JSON"),
+    );
+    expect(childFacts?.content).not.toContain("budget");
+    expect(childFacts?.content).not.toContain("Молоко");
+    const childTools = mockedComplete.mock.calls[0][1] as Array<{ function: { name: string } }>;
+    expect(childTools.some((t) => t.function.name === "propose_create_expense")).toBe(false);
+
+    const childMe = await request(app).get("/api/v1/auth/me").set("Cookie", child.sid);
+    const expenseDraft = await prisma.aiDraft.create({
+      data: {
+        chatId: childChats.body.items[0].chatId,
+        userId: childMe.body.user.id,
+        operation: "CREATE_EXPENSE",
+        payload: {
+          title: "Нельзя",
+          amount: 10,
+          categoryId: food.id,
+          spentByMemberId: child.memberId,
+        },
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      },
+    });
+    const childApply = await request(app)
+      .post(`/api/v1/chats/${childChats.body.items[0].chatId}/drafts/${expenseDraft.id}/apply`)
+      .set("Cookie", child.sid);
+    expect(childApply.status).toBe(403);
   });
 });

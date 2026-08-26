@@ -80,6 +80,18 @@
         </article>
 
         <article class="card feature">
+          <span class="feature-icon feature-icon--lavender" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+              <rect x="3.5" y="6" width="17" height="13" rx="2" />
+              <path d="M3.5 10h17" />
+              <circle cx="16" cy="14.5" r="1.4" />
+            </svg>
+          </span>
+          <h3>Бюджет</h3>
+          <p>Расходы, категории и «кто сколько» за месяц. Видят только взрослые.</p>
+        </article>
+
+        <article class="card feature">
           <img class="annette" src="/annette.jpg" alt="" />
           <h3>Annette</h3>
           <p>Отвечает по данным семьи. Запись в календарь, дела и покупки — только после вашей кнопки.</p>

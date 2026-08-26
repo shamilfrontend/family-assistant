@@ -14,7 +14,6 @@
       <p v-if="error" class="alert">{{ error }}</p>
       <form class="add" @submit.prevent="add">
         <input
-          ref="titleInput"
           v-model="title"
           type="text"
           maxlength="120"
@@ -75,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onMounted, ref } from "vue";
+import { onMounted, ref } from "vue";
 import { api, getApiError } from "@/api/client";
 import { useConfirm } from "@/composables/useConfirm";
 import { useAuthStore } from "@/stores/auth";
@@ -97,7 +96,6 @@ const title = ref("");
 const hideBought = ref(false);
 const error = ref("");
 const loading = ref(false);
-const titleInput = ref<HTMLInputElement | null>(null);
 
 function canEdit(item: Purchase) {
   if (auth.isAdult) return true;
@@ -115,11 +113,7 @@ async function load() {
   items.value = data.items;
 }
 
-onMounted(async () => {
-  await load();
-  await nextTick();
-  titleInput.value?.focus();
-});
+onMounted(load);
 
 async function add() {
   error.value = "";
@@ -128,7 +122,6 @@ async function add() {
     await api.post("/purchases", { title: title.value });
     title.value = "";
     await load();
-    titleInput.value?.focus();
   } catch (err) {
     error.value = getApiError(err).message;
   } finally {

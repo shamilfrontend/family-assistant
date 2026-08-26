@@ -3,13 +3,18 @@ import { prisma } from "../prisma.js";
 import { createPurchase, markPurchaseBought } from "../purchases.js";
 import { createCalendarEvent, familyTimezone, serializeCreatedEvent } from "../calendar.js";
 import { completeTask, createTask, loadTask, serializeTask } from "../tasks.js";
+import { createExpense, serializeExpense } from "../budget.js";
+import { parseInstant, startOfToday } from "../time.js";
 import { conflict, forbidden, notFound, validation } from "../errors.js";
 import type { Actor } from "../serialize.js";
 import { serializePurchase } from "../serialize.js";
-import { parseInstant } from "../time.js";
 import {
   asRecord,
+  formatDate,
   optionalPurchaseCategory,
+  parseAmount,
+  parseDateOnly,
+  parseExpenseTitle,
   parseTaskRecurrence,
   parseTitle,
   parseUuid,
@@ -63,6 +68,20 @@ export function parsePurchaseIdPayload(raw: unknown): string {
   return parseUuid(asPayload(raw).purchaseId, "purchaseId");
 }
 
+export function parseCreateExpensePayload(raw: unknown) {
+  const payload = asPayload(raw);
+  return {
+    title: parseExpenseTitle(payload.title),
+    amount: parseAmount(payload.amount),
+    categoryId: parseUuid(payload.categoryId, "categoryId"),
+    spentByMemberId: parseUuid(payload.spentByMemberId, "spentByMemberId"),
+    spentAt:
+      payload.spentAt === undefined || payload.spentAt === null || payload.spentAt === ""
+        ? undefined
+        : formatDate(parseDateOnly(payload.spentAt, "spentAt")),
+  };
+}
+
 export function parseEventPayload(raw: unknown): Record<string, unknown> {
   return asRecord(raw);
 }
@@ -81,7 +100,12 @@ export async function applyDraft(actor: Actor, chatId: string, draftId: string) 
     throw validation("Черновик истёк");
   }
 
-  if (actor.role === "CHILD" && (draft.operation === "CREATE_EVENT" || draft.operation === "CREATE_TASK")) {
+  if (
+    actor.role === "CHILD" &&
+    (draft.operation === "CREATE_EVENT" ||
+      draft.operation === "CREATE_TASK" ||
+      draft.operation === "CREATE_EXPENSE")
+  ) {
     throw forbidden();
   }
 
@@ -137,6 +161,23 @@ export async function applyDraft(actor: Actor, chatId: string, draftId: string) 
       entity = serializePurchase(purchase);
       break;
     }
+    case "CREATE_EXPENSE": {
+      const payload = parseCreateExpensePayload(draft.payload);
+      const tz = await familyTimezone(actor.familyId);
+      const today = startOfToday(tz).toISODate();
+      const spentAt = parseDateOnly(payload.spentAt ?? today, "spentAt");
+      const expense = await createExpense({
+        familyId: actor.familyId,
+        title: payload.title,
+        amount: payload.amount,
+        categoryId: payload.categoryId,
+        spentByMemberId: payload.spentByMemberId,
+        createdByMemberId: actor.memberId,
+        spentAt,
+      });
+      entity = serializeExpense(expense);
+      break;
+    }
     default:
       throw forbidden();
   }
@@ -180,6 +221,8 @@ export function operationFromToolName(name: string): AiDraftOperation | null {
       return "COMPLETE_TASK";
     case "propose_mark_purchase_bought":
       return "MARK_PURCHASE_BOUGHT";
+    case "propose_create_expense":
+      return "CREATE_EXPENSE";
     default:
       return null;
   }

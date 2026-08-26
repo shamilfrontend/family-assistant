@@ -57,6 +57,7 @@ describe("health records", () => {
     await prisma.$executeRawUnsafe(`
       TRUNCATE TABLE
         "AiDraft", "ChatMessage", "Chat", "AuditLog", "HealthRecord",
+        "Expense", "BudgetCategory",
         "Document", "Purchase", "Task", "EventParticipant", "Event",
         "Invite", "Session", "Member", "Family", "User"
       CASCADE

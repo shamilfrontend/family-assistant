@@ -67,6 +67,16 @@
           {{ auth.isAdult ? "Здоровье" : "Моё здоровье" }}
         </RouterLink>
         <template v-if="auth.isAdult">
+          <RouterLink to="/budget">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <rect x="3.5" y="6" width="17" height="13" rx="2" />
+                <path d="M3.5 10h17" />
+                <circle cx="16" cy="14.5" r="1.4" />
+              </svg>
+            </span>
+            Бюджет
+          </RouterLink>
           <RouterLink to="/family">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
@@ -166,6 +176,7 @@
           {{ auth.isAdult ? "Здоровье" : "Моё здоровье" }}
         </RouterLink>
         <template v-if="auth.isAdult">
+          <RouterLink to="/budget" @click="moreOpen = false">Бюджет</RouterLink>
           <RouterLink to="/family" @click="moreOpen = false">Настройка семьи</RouterLink>
         </template>
         <RouterLink to="/profile" @click="moreOpen = false">Профиль</RouterLink>

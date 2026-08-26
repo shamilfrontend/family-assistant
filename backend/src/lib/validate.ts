@@ -8,6 +8,7 @@ import {
   TaskRecurrence,
   TaskStatus,
 } from "@prisma/client";
+import { DateTime } from "luxon";
 import { validation } from "./errors.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -192,6 +193,59 @@ export function parseQuantity(value: unknown): number | null {
   }
   if (value > 99_999_999) throw validation("Количество слишком большое");
   return Math.round(value * 100) / 100;
+}
+
+export function parseAmount(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    throw validation("Сумма: положительное число");
+  }
+  if (value > 99_999_999.99) throw validation("Сумма слишком большая");
+  return Math.round(value * 100) / 100;
+}
+
+export function parseCategoryName(value: unknown): string {
+  if (typeof value !== "string") throw validation("Укажите название категории");
+  const name = value.trim();
+  if (name.length < 1 || name.length > 40) {
+    throw validation("Категория: 1–40 символов");
+  }
+  return name;
+}
+
+export function parseExpenseTitle(value: unknown): string {
+  if (typeof value !== "string") throw validation("Укажите название");
+  const title = value.trim();
+  if (title.length < 1 || title.length > 80) {
+    throw validation("Название: 1–80 символов");
+  }
+  return title;
+}
+
+export function parseSortOrder(value: unknown): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    throw validation("Порядок: целое число от 0");
+  }
+  return value;
+}
+
+export function parseMonthQuery(value: unknown, timezone: string): string {
+  if (value === undefined || value === null || value === "") {
+    const now = DateTime.utc().setZone(timezone);
+    return `${now.year}-${String(now.month).padStart(2, "0")}`;
+  }
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (typeof raw !== "string" || !/^\d{4}-(0[1-9]|1[0-2])$/.test(raw)) {
+    throw validation("month: YYYY-MM");
+  }
+  return raw;
+}
+
+export function monthDateBounds(month: string): { gte: Date; lte: Date } {
+  const [year, monthIndex] = month.split("-").map(Number);
+  return {
+    gte: new Date(Date.UTC(year, monthIndex - 1, 1)),
+    lte: new Date(Date.UTC(year, monthIndex, 0)),
+  };
 }
 
 export function parseMessageContent(value: unknown): string {

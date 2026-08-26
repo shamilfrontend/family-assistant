@@ -43,15 +43,17 @@ familyRouter.patch("/", requireAuth, requireAdult, async (req, res, next) => {
 familyRouter.get("/deletion-preview", requireAuth, requireAdult, async (req, res, next) => {
   try {
     const familyId = req.actor!.familyId;
-    const [members, events, tasks, purchases, documents, healthRecords, chats] = await Promise.all([
-      prisma.member.count({ where: { familyId } }),
-      prisma.event.count({ where: { familyId } }),
-      prisma.task.count({ where: { familyId } }),
-      prisma.purchase.count({ where: { familyId } }),
-      prisma.document.count({ where: { familyId } }),
-      prisma.healthRecord.count({ where: { familyId } }),
-      prisma.chat.count({ where: { familyId } }),
-    ]);
+    const [members, events, tasks, purchases, documents, healthRecords, expenses, chats] =
+      await Promise.all([
+        prisma.member.count({ where: { familyId } }),
+        prisma.event.count({ where: { familyId } }),
+        prisma.task.count({ where: { familyId } }),
+        prisma.purchase.count({ where: { familyId } }),
+        prisma.document.count({ where: { familyId } }),
+        prisma.healthRecord.count({ where: { familyId } }),
+        prisma.expense.count({ where: { familyId } }),
+        prisma.chat.count({ where: { familyId } }),
+      ]);
     res.json({
       members,
       events,
@@ -59,6 +61,7 @@ familyRouter.get("/deletion-preview", requireAuth, requireAdult, async (req, res
       purchases,
       documents,
       healthRecords,
+      expenses,
       chats,
     });
   } catch (err) {

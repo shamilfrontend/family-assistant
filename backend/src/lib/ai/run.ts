@@ -8,6 +8,7 @@ import {
   draftExpiresAt,
   operationFromToolName,
   parseCreateTaskPayload,
+  parseCreateExpensePayload,
   parseEventPayload,
   parsePurchaseIdPayload,
   parsePurchasePayload,
@@ -61,6 +62,17 @@ function draftFromTool(call: LlmToolCall): PreparedDraft | { error: string } {
       case "MARK_PURCHASE_BOUGHT":
         payload = { purchaseId: parsePurchaseIdPayload(args) };
         break;
+      case "CREATE_EXPENSE": {
+        const parsed = parseCreateExpensePayload(args);
+        payload = {
+          title: parsed.title,
+          amount: parsed.amount,
+          categoryId: parsed.categoryId,
+          spentByMemberId: parsed.spentByMemberId,
+          ...(parsed.spentAt ? { spentAt: parsed.spentAt } : {}),
+        };
+        break;
+      }
     }
     return { id: randomUUID(), operation, payload };
   } catch (err) {

@@ -18,6 +18,7 @@ import {
 } from "../lib/errors.js";
 import { assertNotLastLoggedInAdult } from "../lib/rbac.js";
 import { serializeMe } from "../lib/serialize.js";
+import { seedDefaultCategories } from "../lib/budget.js";
 import { requireAuth } from "../middleware/auth.js";
 import {
   clearSessionCookie,
@@ -67,6 +68,7 @@ authRouter.post("/register", async (req, res, next) => {
       await tx.chat.create({
         data: { familyId: family.id, ownerUserId: user.id },
       });
+      await seedDefaultCategories(family.id, tx);
       const session = await createSession(tx, user.id);
       return { user, family, member, session };
     });

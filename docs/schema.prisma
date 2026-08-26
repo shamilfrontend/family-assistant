@@ -84,6 +84,7 @@ enum AiDraftOperation {
   CREATE_TASK
   COMPLETE_TASK
   MARK_PURCHASE_BOUGHT
+  CREATE_EXPENSE
 }
 
 enum AuditAction {
@@ -136,15 +137,17 @@ model Family {
   updatedAt       DateTime @updatedAt
 
   createdBy     User?          @relation("FamilyCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  members       Member[]
-  invites       Invite[]
-  events        Event[]
-  tasks         Task[]
-  purchases     Purchase[]
-  documents     Document[]
-  healthRecords HealthRecord[]
-  chats         Chat[]
-  auditLogs     AuditLog[]
+  members          Member[]
+  invites          Invite[]
+  events           Event[]
+  tasks            Task[]
+  purchases        Purchase[]
+  documents        Document[]
+  healthRecords    HealthRecord[]
+  budgetCategories BudgetCategory[]
+  expenses         Expense[]
+  chats            Chat[]
+  auditLogs        AuditLog[]
 }
 
 model Member {
@@ -173,6 +176,8 @@ model Member {
   documents           Document[]
   healthRecords       HealthRecord[]
   createdEvents       Event[]          @relation("EventCreator")
+  spentExpenses       Expense[]        @relation("ExpenseSpentBy")
+  createdExpenses     Expense[]        @relation("ExpenseCreator")
 
   @@index([familyId])
 }
@@ -296,6 +301,43 @@ model Document {
 
   @@index([familyId, ownerMemberId])
   @@index([expiresAt])
+}
+
+model BudgetCategory {
+  id        String   @id @default(uuid()) @db.Uuid
+  familyId  String   @db.Uuid
+  name      String
+  sortOrder Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  family   Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  expenses Expense[]
+
+  @@index([familyId])
+}
+
+model Expense {
+  id                String   @id @default(uuid()) @db.Uuid
+  familyId          String   @db.Uuid
+  categoryId        String   @db.Uuid
+  spentByMemberId   String   @db.Uuid
+  createdByMemberId String?  @db.Uuid
+  title             String
+  amount            Decimal  @db.Decimal(12, 2)
+  /// Календарный день в поясе семьи
+  spentAt           DateTime @db.Date
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  family    Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  category  BudgetCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  spentBy   Member         @relation("ExpenseSpentBy", fields: [spentByMemberId], references: [id], onDelete: Cascade)
+  createdBy Member?        @relation("ExpenseCreator", fields: [createdByMemberId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, spentAt])
+  @@index([categoryId])
+  @@index([spentByMemberId])
 }
 
 model HealthRecord {

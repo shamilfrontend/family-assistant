@@ -18,7 +18,11 @@ erDiagram
   Family ||--|{ Purchase : has
   Family ||--|{ Document : has
   Family ||--|{ HealthRecord : has
+  Family ||--|{ BudgetCategory : has
+  Family ||--|{ Expense : has
   Event }o--o{ Member : participants
+  BudgetCategory ||--|{ Expense : classifies
+  Member ||--|{ Expense : spentBy
   HealthRecord |o--o| Event : appointment
   Chat ||--|{ ChatMessage : has
   Chat ||--|{ AiDraft : has
@@ -140,18 +144,29 @@ Split при PATCH `scope=this` для вхождения на дату D:
 Apply по роли (те же права, что у соответствующего POST/PATCH):
 
 - `CREATE_PURCHASE`, `MARK_PURCHASE_BOUGHT` — оба (ребёнок — по правилам покупок выше)
-- `CREATE_EVENT`, `CREATE_TASK` — только взрослый; ребёнок — `forbidden`
+- `CREATE_EVENT`, `CREATE_TASK`, `CREATE_EXPENSE` — только взрослый; ребёнок — `forbidden`
 - `COMPLETE_TASK` — ребёнок только своё дело
 
 Операции по подфазам:
 
 - 1.3: `CREATE_PURCHASE`
 - 1.4: `CREATE_EVENT`, `CREATE_TASK`, `COMPLETE_TASK`, `MARK_PURCHASE_BOUGHT`
+- 2: `CREATE_EXPENSE`
 - Документы и мед. записи из чата не создаются
 
 Сопоставление по имени: 0 совпадений — сказать; больше одного — уточнить списком карточек (`id` + имя); без догадок.
 
 Выборка в модель — на сервере по роли, не «вся БД» и не с клиента. Контракт вызова и tools — [ai.md](ai.md). Если LLM недоступна — шаблон, без записи в данные.
+
+## Бюджет
+
+Журнал расходов на семью. Валюта — рубли, поля валюты нет. Доходов и лимитов нет.
+
+- `BudgetCategory.name` уникален в семье без учёта регистра (проверка в коде). Стартовый набор при создании семьи: Продукты, Быт, Аптека, Транспорт, Другое.
+- Удаление категории с расходами — `conflict`.
+- `Expense.spentAt` — календарный день в поясе семьи (`date`). `amount` — `Decimal(12, 2)`, в API число.
+- `spentByMemberId` — любая карточка семьи. Сводка «кто сколько» — сумма `amount` по члену за выбранный месяц.
+- Ребёнок модуль не видит: все эндпоинты `requireAdult`, в Facts и tools бюджета нет.
 
 ## Напоминания
 
@@ -169,8 +184,8 @@ Apply по роли (те же права, что у соответствующ�
 
 ## Каскады
 
-Удаление семьи (после `confirm` + списка того, что сотрётся) — hard cascade всех строк с `familyId`: члены, приглашения, события, дела, покупки, документы, здоровье, чаты, сообщения, черновики, аудит.
+Удаление семьи (после `confirm` + списка того, что сотрётся) — hard cascade всех строк с `familyId`: члены, приглашения, события, дела, покупки, документы, здоровье, категории бюджета, расходы, чаты, сообщения, черновики, аудит.
 
-Удаление Member: участники событий, документы и здоровье карточки, назначенные дела; если был аккаунт — User (сессии, чат). `Purchase.addedByMemberId` и `Event.createdByMemberId` — SetNull. Нельзя удалить последнего взрослого.
+Удаление Member: участники событий, документы и здоровье карточки, назначенные дела, расходы этого человека (`spentBy`); если был аккаунт — User (сессии, чат). `Purchase.addedByMemberId`, `Event.createdByMemberId` и `Expense.createdByMemberId` — SetNull. Нельзя удалить последнего взрослого.
 
 `AuditLog` пишется до подфазы 1.5: просмотр полного номера, чтение здоровья, смена роли, приглашения, удаление семьи/аккаунта. В metadata нет полного номера и тел промптов. Перед `ACCOUNT_DELETE` / `FAMILY_DELETE` в metadata пишутся `actorEmail` и `actorMemberId`: после cascade `userId` станет null, кто сделал — только из metadata.

@@ -156,6 +156,7 @@ const labels: Record<string, string> = {
   purchases: "покупки",
   documents: "документы",
   healthRecords: "мед. записи",
+  expenses: "расходы",
   chats: "чаты",
 };
 

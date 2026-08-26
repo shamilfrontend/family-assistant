@@ -195,11 +195,20 @@ function draftLabel(draft: Draft) {
   if (draft.operation === "MARK_PURCHASE_BOUGHT") {
     return "Отметить покупку купленной";
   }
+  if (draft.operation === "CREATE_EXPENSE") {
+    return `Добавить расход «${draft.payload.title ?? ""}»`;
+  }
   return draft.operation;
 }
 
 function canApply(draft: Draft) {
-  if (draft.operation === "CREATE_EVENT" || draft.operation === "CREATE_TASK") return auth.isAdult;
+  if (
+    draft.operation === "CREATE_EVENT" ||
+    draft.operation === "CREATE_TASK" ||
+    draft.operation === "CREATE_EXPENSE"
+  ) {
+    return auth.isAdult;
+  }
   return true;
 }
 
@@ -208,7 +217,9 @@ function draftStatus(draft: Draft) {
   if (draft.status === "REJECTED") return "отклонено";
   if (
     !auth.isAdult &&
-    (draft.operation === "CREATE_EVENT" || draft.operation === "CREATE_TASK")
+    (draft.operation === "CREATE_EVENT" ||
+      draft.operation === "CREATE_TASK" ||
+      draft.operation === "CREATE_EXPENSE")
   ) {
     return "только для взрослых";
   }
