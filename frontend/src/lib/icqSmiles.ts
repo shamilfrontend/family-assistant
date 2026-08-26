@@ -153,7 +153,8 @@ const LEGACY_CODES: { code: string; filename: IcqFilename }[] = [
   { code: ":O", filename: "shock.gif" },
   { code: "8)", filename: "dirol.gif" },
   { code: ":X", filename: "secret.gif" },
-].sort((a, b) => b.code.length - a.code.length);
+];
+LEGACY_CODES.sort((a, b) => b.code.length - a.code.length);
 
 export function isIcqFilename(value: string): value is IcqFilename {
   return ICQ_FILENAME_RE.test(value) && ICQ_FILE_SET.has(value);
