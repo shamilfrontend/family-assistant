@@ -90,6 +90,7 @@ import { computed, reactive, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { api, getApiError } from "@/api/client";
 import Modal from "@/components/Modal.vue";
+import { useConfirm } from "@/composables/useConfirm";
 import {
   HEALTH_KINDS,
   emptyHealthForm,
@@ -112,6 +113,7 @@ type MemberCard = {
 
 const auth = useAuthStore();
 const route = useRoute();
+const { confirm } = useConfirm();
 const member = ref<MemberCard | null>(null);
 const items = ref<HealthRecord[]>([]);
 const error = ref("");
@@ -252,7 +254,15 @@ async function save() {
 }
 
 async function remove(item: HealthRecord) {
-  if (!confirm("Удалить запись?")) return;
+  if (
+    !(await confirm({
+      title: "Удалить запись?",
+      confirmLabel: "Удалить",
+      danger: true,
+    }))
+  ) {
+    return;
+  }
   loading.value = true;
   error.value = "";
   try {

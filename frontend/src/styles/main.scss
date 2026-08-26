@@ -344,6 +344,10 @@ legend {
   color: var(--accent-text);
 }
 
+.filter {
+  max-width: 360px;
+}
+
 .section-head {
   display: flex;
   align-items: baseline;
@@ -392,19 +396,6 @@ legend {
 
 .guest .card {
   width: min(420px, 100%);
-}
-
-.brand-mark {
-  font-family: var(--font-display);
-  font-size: 2rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  margin: 0;
-  color: var(--text);
-}
-
-.brand-mark span {
-  color: var(--accent);
 }
 
 .theme-switch {
@@ -567,7 +558,8 @@ button.action-card {
   margin: 0;
 }
 
-.chip:has(input:checked) {
+.chip:has(input:checked),
+.chip--on {
   background: var(--accent-soft);
   border-color: transparent;
   color: var(--accent-text);

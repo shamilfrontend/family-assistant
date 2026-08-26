@@ -53,6 +53,7 @@
 import { onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { api, getApiError } from "@/api/client";
+import { useConfirm } from "@/composables/useConfirm";
 import { useTheme } from "@/lib/theme";
 import { useAuthStore } from "@/stores/auth";
 
@@ -68,6 +69,7 @@ type Card = {
 
 const auth = useAuthStore();
 const router = useRouter();
+const { confirm } = useConfirm();
 const { mode, setTheme } = useTheme();
 const card = ref<Card | null>(null);
 const error = ref("");
@@ -110,6 +112,14 @@ async function save() {
 }
 
 async function logout() {
+  if (
+    !(await confirm({
+      title: "Выйти из аккаунта?",
+      confirmLabel: "Выйти",
+    }))
+  ) {
+    return;
+  }
   error.value = "";
   loading.value = true;
   try {
@@ -123,7 +133,16 @@ async function logout() {
 }
 
 async function removeAccount() {
-  if (!confirm("Удалить вход? Карточка останется в семье.")) return;
+  if (
+    !(await confirm({
+      title: "Удалить вход?",
+      message: "Карточка останется в семье.",
+      confirmLabel: "Удалить",
+      danger: true,
+    }))
+  ) {
+    return;
+  }
   error.value = "";
   loading.value = true;
   try {

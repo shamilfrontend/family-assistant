@@ -124,6 +124,7 @@ import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { api, getApiError } from "@/api/client";
 import Modal from "@/components/Modal.vue";
+import { useConfirm } from "@/composables/useConfirm";
 import { formatDate } from "@/lib/time";
 import { useAuthStore } from "@/stores/auth";
 
@@ -160,6 +161,7 @@ const labels: Record<string, string> = {
 
 const auth = useAuthStore();
 const router = useRouter();
+const { confirm } = useConfirm();
 
 const members = ref<Member[]>([]);
 const membersError = ref("");
@@ -277,6 +279,15 @@ async function createInvite() {
 }
 
 async function revokeInvite(id: string) {
+  if (
+    !(await confirm({
+      title: "Отозвать приглашение?",
+      confirmLabel: "Отозвать",
+      danger: true,
+    }))
+  ) {
+    return;
+  }
   invitesError.value = "";
   try {
     await api.post(`/invites/${id}/revoke`);
@@ -308,7 +319,15 @@ async function loadPreview() {
 
 async function removeFamily() {
   if (!preview.value) return;
-  if (!confirm("Удалить семью безвозвратно?")) return;
+  if (
+    !(await confirm({
+      title: "Удалить семью безвозвратно?",
+      confirmLabel: "Удалить",
+      danger: true,
+    }))
+  ) {
+    return;
+  }
   familyError.value = "";
   familyLoading.value = true;
   try {

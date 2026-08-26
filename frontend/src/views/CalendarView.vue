@@ -3,30 +3,56 @@
     <div class="card stack">
       <div class="section-head">
         <h1>Календарь</h1>
-        <button v-if="auth.isAdult" type="button" @click="createOpen = true">Добавить</button>
+        <button v-if="auth.isAdult" type="button" @click="openCreate()">Добавить</button>
       </div>
       <p v-if="error" class="alert">{{ error }}</p>
 
+      <div v-if="auth.isAdult" class="chip-group view-switch" role="radiogroup" aria-label="Вид">
+        <button
+          v-for="opt in VIEW_OPTIONS"
+          :key="opt.id"
+          type="button"
+          role="radio"
+          class="chip"
+          :class="{ 'chip--on': view === opt.id }"
+          :aria-checked="view === opt.id"
+          @click="view = opt.id"
+        >
+          {{ opt.label }}
+        </button>
+      </div>
+
       <label v-if="auth.isAdult" class="filter">
         Кто
-        <select v-model="memberId" @change="load">
+        <select v-model="memberId">
           <option value="">все</option>
           <option v-for="member in members" :key="member.id" :value="member.id">{{ member.name }}</option>
         </select>
       </label>
 
       <template v-if="auth.isAdult">
-        <div class="row month-nav">
-          <button class="btn btn--ghost nav-btn" type="button" aria-label="Предыдущий месяц" @click="shiftMonth(-1)">
+        <div class="row period-nav">
+          <button class="btn btn--ghost nav-btn" type="button" :aria-label="prevLabel" @click="shift(-1)">
             ←
           </button>
-          <strong class="month-title">{{ monthTitle }}</strong>
-          <button class="btn btn--ghost nav-btn" type="button" aria-label="Следующий месяц" @click="shiftMonth(1)">
+          <strong class="period-title">{{ periodTitle }}</strong>
+          <button class="btn btn--ghost nav-btn" type="button" :aria-label="nextLabel" @click="shift(1)">
             →
           </button>
         </div>
 
-        <div class="month">
+        <CalendarTimeGrid
+          v-if="view !== 'month'"
+          :days="periodDays"
+          :items="items"
+          :tz="tz"
+          :today-ymd="todayYmd"
+          :can-create="true"
+          @select="selectedDay = $event"
+          @create="openCreate($event.date, $event.time)"
+        />
+
+        <div v-else class="month">
           <div v-for="day in weekdays" :key="day" class="dow">{{ day }}</div>
           <button
             v-for="day in grid"
@@ -50,14 +76,14 @@
       </template>
     </div>
 
-    <div class="card stack">
+    <div v-if="!auth.isAdult || view === 'month'" class="card stack">
       <div class="section-head">
         <h2>{{ listTitle }}</h2>
-        <button v-if="auth.isAdult" type="button" @click="createOpen = true">Добавить</button>
+        <button v-if="auth.isAdult" type="button" @click="openCreate()">Добавить</button>
       </div>
       <div v-if="visibleItems.length === 0" class="empty">
         <p class="muted">Нет событий на этот период.</p>
-        <button v-if="auth.isAdult" class="btn" type="button" @click="createOpen = true">Добавить событие</button>
+        <button v-if="auth.isAdult" class="btn" type="button" @click="openCreate()">Добавить событие</button>
       </div>
       <div v-else class="list">
         <RouterLink v-for="item in visibleItems" :key="item.id + item.occurrenceStart" :to="eventLink(item)">
@@ -72,7 +98,8 @@
 
     <EventFormModal
       :open="createOpen"
-      :default-date="auth.isAdult ? selectedDay : undefined"
+      :default-date="auth.isAdult ? createDate : undefined"
+      :default-time="createTime"
       @close="createOpen = false"
       @created="load"
     />
@@ -83,28 +110,73 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { DateTime } from "luxon";
 import { api, getApiError } from "@/api/client";
+import CalendarTimeGrid from "@/components/CalendarTimeGrid.vue";
 import EventFormModal from "@/components/EventFormModal.vue";
 import { eventLink, typeLabel, type Occurrence } from "@/lib/events";
-import { familyNow, formatDate, formatMonthTitle, formatTime, fromIso, monthGrid, ymd } from "@/lib/time";
+import {
+  daysInWeek,
+  familyNow,
+  formatDate,
+  formatDayTitle,
+  formatMonthTitle,
+  formatTime,
+  formatWeekRangeTitle,
+  fromIso,
+  monthGrid,
+  ymd,
+} from "@/lib/time";
 import { useAuthStore } from "@/stores/auth";
+
+type CalView = "day" | "workweek" | "week" | "month";
+
+const VIEW_OPTIONS: { id: CalView; label: string }[] = [
+  { id: "day", label: "День" },
+  { id: "workweek", label: "Рабочая неделя" },
+  { id: "week", label: "Неделя" },
+  { id: "month", label: "Месяц" },
+];
 
 const weekdays = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"];
 const auth = useAuthStore();
 const tz = computed(() => auth.me?.family.timezone ?? "UTC");
 const error = ref("");
 const createOpen = ref(false);
+const createDate = ref("");
+const createTime = ref<string | undefined>(undefined);
 const items = ref<Occurrence[]>([]);
 const members = ref<{ id: string; name: string }[]>([]);
 const memberId = ref("");
-const cursor = ref(familyNow(tz.value).startOf("month"));
+const view = ref<CalView>("month");
+const monthCursor = ref(familyNow(tz.value).startOf("month"));
 const selectedDay = ref(ymd(familyNow(tz.value)));
 const todayYmd = computed(() => ymd(familyNow(tz.value)));
 const isDesktop = ref(false);
 
-const year = computed(() => cursor.value.year);
-const month = computed(() => cursor.value.month);
+const focus = computed(() => DateTime.fromISO(selectedDay.value, { zone: tz.value }));
+const year = computed(() => monthCursor.value.year);
+const month = computed(() => monthCursor.value.month);
 const grid = computed(() => monthGrid(year.value, month.value, tz.value));
 const monthTitle = computed(() => formatMonthTitle(year.value, month.value, tz.value));
+
+const periodDays = computed(() => {
+  if (view.value === "day") return [focus.value.startOf("day")];
+  if (view.value === "workweek") return daysInWeek(focus.value, 5);
+  if (view.value === "week") return daysInWeek(focus.value, 7);
+  return [];
+});
+
+const periodTitle = computed(() => {
+  if (view.value === "month") return monthTitle.value;
+  if (view.value === "day") return formatDayTitle(focus.value);
+  return formatWeekRangeTitle(periodDays.value);
+});
+
+const prevLabel = computed(() =>
+  view.value === "month" ? "Предыдущий месяц" : view.value === "day" ? "Предыдущий день" : "Предыдущая неделя",
+);
+const nextLabel = computed(() =>
+  view.value === "month" ? "Следующий месяц" : view.value === "day" ? "Следующий день" : "Следующая неделя",
+);
 
 const byDay = computed(() => {
   const map: Record<string, Occurrence[]> = {};
@@ -138,9 +210,20 @@ function when(item: Occurrence): string {
   return item.allDay ? date : `${date} ${formatTime(item.occurrenceStart, tz.value)}`;
 }
 
-function shiftMonth(delta: number) {
-  cursor.value = cursor.value.plus({ months: delta }).startOf("month");
-  selectedDay.value = ymd(cursor.value);
+function shift(delta: number) {
+  if (view.value === "month") {
+    monthCursor.value = monthCursor.value.plus({ months: delta }).startOf("month");
+    selectedDay.value = ymd(monthCursor.value);
+    return;
+  }
+  const unit = view.value === "day" ? "days" : "weeks";
+  selectedDay.value = ymd(focus.value.plus({ [unit]: delta }));
+}
+
+function openCreate(date?: string, time?: string) {
+  createDate.value = date ?? selectedDay.value;
+  createTime.value = time;
+  createOpen.value = true;
 }
 
 async function load() {
@@ -151,13 +234,16 @@ async function load() {
     const now = familyNow(zone);
     let from: string;
     let to: string;
-    if (auth.isAdult) {
+    if (!auth.isAdult) {
+      from = now.toISODate() ?? "";
+      to = now.plus({ days: 30 }).toISODate() ?? "";
+    } else if (view.value === "month") {
       const days = monthGrid(year.value, month.value, zone);
       from = days[0].toISODate() ?? "";
       to = days[days.length - 1].toISODate() ?? "";
     } else {
-      from = now.toISODate() ?? "";
-      to = now.plus({ days: 30 }).toISODate() ?? "";
+      from = periodDays.value[0]?.toISODate() ?? "";
+      to = periodDays.value[periodDays.value.length - 1]?.toISODate() ?? "";
     }
     const { data } = await api.get<{ items: Occurrence[] }>("/events", {
       params: {
@@ -186,16 +272,29 @@ onMounted(async () => {
   await load();
 });
 
-watch([cursor, tz], load);
+const rangeKey = computed(() => {
+  if (!auth.isAdult) return "child";
+  if (view.value === "month") return `month:${year.value}-${month.value}`;
+  return `${view.value}:${periodDays.value.map((day: DateTime) => ymd(day)).join(",")}`;
+});
+
+watch(view, (next) => {
+  if (next === "month") monthCursor.value = focus.value.startOf("month");
+});
+
+watch([rangeKey, tz, memberId], load);
 </script>
 
 <style scoped lang="scss">
-.filter,
-.month-nav {
-  max-width: 360px;
+.view-switch {
+  margin-bottom: 2px;
 }
 
-.month-nav {
+.view-switch .chip {
+  color: inherit;
+}
+
+.period-nav {
   justify-content: space-between;
   align-items: center;
 }
@@ -205,10 +304,12 @@ watch([cursor, tz], load);
   padding-inline: 12px;
 }
 
-.month-title {
+.period-title {
   font-family: var(--font-display);
   font-size: 1.05rem;
   text-transform: capitalize;
+  text-align: center;
+  flex: 1;
 }
 
 .month {

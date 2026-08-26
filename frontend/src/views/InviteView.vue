@@ -1,7 +1,7 @@
 <template>
   <div class="guest">
     <div class="card stack">
-      <p class="brand-mark">Сем<span>ья</span></p>
+      <BrandLogo />
       <h1>Приглашение</h1>
       <p v-if="expired" class="alert">Ссылка недействительна: истекла, отозвана или уже использована.</p>
       <template v-else-if="preview">
@@ -32,6 +32,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import BrandLogo from "@/components/BrandLogo.vue";
 import { api, getApiError } from "@/api/client";
 import { useAuthStore } from "@/stores/auth";
 

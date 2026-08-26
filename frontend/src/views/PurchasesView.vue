@@ -3,11 +3,14 @@
     <div class="card stack">
       <div class="section-head">
         <h1>Покупки</h1>
-        <label class="hide">
-          <input v-model="hideBought" type="checkbox" @change="load" />
-          скрыть купленное
-        </label>
       </div>
+      <label class="filter">
+        Показывать
+        <select v-model="hideBought" @change="load">
+          <option :value="false">все</option>
+          <option :value="true">скрыть купленное</option>
+        </select>
+      </label>
       <p v-if="error" class="alert">{{ error }}</p>
       <form class="add" @submit.prevent="add">
         <input
@@ -74,6 +77,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref } from "vue";
 import { api, getApiError } from "@/api/client";
+import { useConfirm } from "@/composables/useConfirm";
 import { useAuthStore } from "@/stores/auth";
 
 type Purchase = {
@@ -87,6 +91,7 @@ type Purchase = {
 };
 
 const auth = useAuthStore();
+const { confirm } = useConfirm();
 const items = ref<Purchase[]>([]);
 const title = ref("");
 const hideBought = ref(false);
@@ -159,6 +164,15 @@ async function rename(item: Purchase) {
 }
 
 async function remove(item: Purchase) {
+  if (
+    !(await confirm({
+      title: "Удалить покупку?",
+      confirmLabel: "Удалить",
+      danger: true,
+    }))
+  ) {
+    return;
+  }
   error.value = "";
   try {
     await api.delete(`/purchases/${item.id}`);
@@ -169,6 +183,15 @@ async function remove(item: Purchase) {
 }
 
 async function clearBought() {
+  if (
+    !(await confirm({
+      title: "Убрать все купленные позиции?",
+      confirmLabel: "Убрать",
+      danger: true,
+    }))
+  ) {
+    return;
+  }
   error.value = "";
   loading.value = true;
   try {
@@ -198,15 +221,6 @@ async function clearBought() {
   flex-shrink: 0;
   font-size: 1.4rem;
   line-height: 1;
-}
-
-.hide {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--muted);
 }
 
 .check {

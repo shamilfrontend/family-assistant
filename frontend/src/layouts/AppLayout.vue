@@ -1,7 +1,7 @@
 <template>
   <div class="shell">
     <aside class="sidebar">
-      <p class="brand">Семейный <span>ассистент</span></p>
+      <BrandLogo variant="nav" />
       <nav class="nav">
         <RouterLink class="nav-home" to="/">
           <span class="nav-icon" aria-hidden="true">
@@ -176,6 +176,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import BrandLogo from "@/components/BrandLogo.vue";
 import { useAuthStore } from "@/stores/auth";
 
 const auth = useAuthStore();
@@ -189,20 +190,6 @@ const moreOpen = ref(false);
 
 .sidebar {
   display: none;
-}
-
-.brand {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.5rem;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
-  margin: 0 0 28px;
-}
-
-.brand span {
-  display: block;
-  color: var(--accent);
 }
 
 .nav {

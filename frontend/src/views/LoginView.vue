@@ -1,7 +1,7 @@
 <template>
   <div class="guest">
     <form class="card stack auth-card" @submit.prevent="onSubmit">
-      <p class="brand-mark">Семейный <span>ассистент</span></p>
+      <BrandLogo />
       <div>
         <h1>Вход</h1>
         <p class="muted">Семейный ассистент для общего календаря</p>
@@ -21,6 +21,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
+import BrandLogo from "@/components/BrandLogo.vue";
 import { getApiError } from "@/api/client";
 import { useAuthStore } from "@/stores/auth";
 

@@ -5,9 +5,12 @@
         <h1>{{ auth.isAdult ? "Дела" : "Мои дела" }}</h1>
         <button v-if="auth.isAdult" type="button" @click="openCreate">Добавить</button>
       </div>
-      <label v-if="auth.isAdult" class="hide">
-        <input v-model="onlyOpen" type="checkbox" @change="load" />
-        только открытые
+      <label v-if="auth.isAdult" class="filter">
+        Показывать
+        <select v-model="onlyOpen" @change="load">
+          <option :value="true">только открытые</option>
+          <option :value="false">все</option>
+        </select>
       </label>
       <p v-if="error" class="alert">{{ error }}</p>
       <div v-if="items.length === 0" class="empty">
@@ -154,14 +157,6 @@ async function toggle(item: Task, checked: boolean) {
 </script>
 
 <style scoped lang="scss">
-.hide {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.88rem;
-  color: var(--muted);
-}
-
 .done span {
   text-decoration: line-through;
   color: var(--muted);

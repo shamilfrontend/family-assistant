@@ -48,6 +48,7 @@
 import { onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { api, getApiError } from "@/api/client";
+import { useConfirm } from "@/composables/useConfirm";
 
 type Card = {
   id: string;
@@ -62,6 +63,7 @@ type Card = {
 
 const route = useRoute();
 const router = useRouter();
+const { confirm } = useConfirm();
 const card = ref<Card | null>(null);
 const denied = ref("");
 const error = ref("");
@@ -117,7 +119,15 @@ async function save() {
 }
 
 async function removeCard() {
-  if (!confirm("Удалить карточку и связанные записи?")) return;
+  if (
+    !(await confirm({
+      title: "Удалить карточку и связанные записи?",
+      confirmLabel: "Удалить",
+      danger: true,
+    }))
+  ) {
+    return;
+  }
   error.value = "";
   loading.value = true;
   try {

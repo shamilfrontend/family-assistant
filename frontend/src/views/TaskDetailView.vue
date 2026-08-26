@@ -69,6 +69,7 @@
 import { computed, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { api, getApiError } from "@/api/client";
+import { useConfirm } from "@/composables/useConfirm";
 import { TASK_RECURRENCE, taskRecurrenceLabel, type Task } from "@/lib/tasks";
 import { formatDate, formatTime, fromDatetimeLocal, toDatetimeLocal } from "@/lib/time";
 import { useAuthStore } from "@/stores/auth";
@@ -76,6 +77,7 @@ import { useAuthStore } from "@/stores/auth";
 const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();
+const { confirm } = useConfirm();
 const tz = computed(() => auth.me?.family.timezone ?? "UTC");
 const task = ref<Task | null>(null);
 const members = ref<{ id: string; name: string }[]>([]);
@@ -168,7 +170,15 @@ async function reopen() {
 
 async function remove() {
   if (!task.value) return;
-  if (!confirm("Удалить дело?")) return;
+  if (
+    !(await confirm({
+      title: "Удалить дело?",
+      confirmLabel: "Удалить",
+      danger: true,
+    }))
+  ) {
+    return;
+  }
   loading.value = true;
   try {
     await api.delete(`/tasks/${task.value.id}`);

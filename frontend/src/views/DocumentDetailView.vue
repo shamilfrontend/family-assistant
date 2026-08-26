@@ -48,12 +48,14 @@
 import { computed, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { api, getApiError } from "@/api/client";
+import { useConfirm } from "@/composables/useConfirm";
 import { DOCUMENT_TYPES, documentTypeLabel, type FamilyDocument } from "@/lib/documents";
 import { useAuthStore } from "@/stores/auth";
 
 const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();
+const { confirm } = useConfirm();
 const doc = ref<FamilyDocument | null>(null);
 const members = ref<{ id: string; name: string }[]>([]);
 const error = ref("");
@@ -123,7 +125,15 @@ async function save() {
 
 async function remove() {
   if (!doc.value) return;
-  if (!confirm("Удалить документ?")) return;
+  if (
+    !(await confirm({
+      title: "Удалить документ?",
+      confirmLabel: "Удалить",
+      danger: true,
+    }))
+  ) {
+    return;
+  }
   loading.value = true;
   try {
     await api.delete(`/documents/${doc.value.id}`);

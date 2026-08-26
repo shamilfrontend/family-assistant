@@ -20,6 +20,7 @@ import { useAuthStore } from "@/stores/auth";
 const props = defineProps<{
   open: boolean;
   defaultDate?: string;
+  defaultTime?: string;
 }>();
 
 const emit = defineEmits<{ close: []; created: [] }>();
@@ -40,6 +41,7 @@ watch(
       members.value = data.items;
       const next = emptyForm(auth.me.family.timezone, auth.me.member.id);
       if (props.defaultDate) next.date = props.defaultDate;
+      if (props.defaultTime) next.time = props.defaultTime;
       form.value = next;
     } catch (err) {
       error.value = getApiError(err).message;

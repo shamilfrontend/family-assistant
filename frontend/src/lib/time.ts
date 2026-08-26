@@ -47,3 +47,22 @@ export function monthGrid(year: number, month: number, tz: string): DateTime[] {
   const start = first.minus({ days: first.weekday - 1 });
   return Array.from({ length: 42 }, (_, i) => start.plus({ days: i }));
 }
+
+export function startOfWeek(dt: DateTime): DateTime {
+  return dt.startOf("day").minus({ days: dt.weekday - 1 });
+}
+
+export function daysInWeek(anchor: DateTime, count: 5 | 7): DateTime[] {
+  const start = startOfWeek(anchor);
+  return Array.from({ length: count }, (_, i) => start.plus({ days: i }));
+}
+
+export function formatDayTitle(dt: DateTime): string {
+  return dt.setLocale("ru").toFormat("d MMMM yyyy");
+}
+
+export function formatWeekRangeTitle(days: DateTime[]): string {
+  const first = days[0].setLocale("ru");
+  const last = days[days.length - 1].setLocale("ru");
+  return `${first.toFormat("d MMM")} – ${last.toFormat("d MMM yyyy")}`;
+}

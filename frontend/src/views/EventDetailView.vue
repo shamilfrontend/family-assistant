@@ -59,6 +59,7 @@ import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { api, getApiError } from "@/api/client";
 import EventFields from "@/components/EventFields.vue";
+import { useConfirm } from "@/composables/useConfirm";
 import {
   eventLink,
   formFromEvent,
@@ -73,6 +74,7 @@ import { useAuthStore } from "@/stores/auth";
 const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();
+const { confirm } = useConfirm();
 const event = ref<Occurrence | null>(null);
 const form = ref<EventFormState | null>(null);
 const members = ref<{ id: string; name: string }[]>([]);
@@ -174,7 +176,16 @@ async function save() {
 
 async function removeSeries() {
   if (!event.value) return;
-  if (!confirm("Удалить всю серию?")) return;
+  const series = event.value.recurrence !== "NONE";
+  if (
+    !(await confirm({
+      title: series ? "Удалить всю серию?" : "Удалить событие?",
+      confirmLabel: "Удалить",
+      danger: true,
+    }))
+  ) {
+    return;
+  }
   loading.value = true;
   error.value = "";
   try {
