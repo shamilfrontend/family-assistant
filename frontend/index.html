@@ -8,7 +8,10 @@
     <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#e56b6f" />
     <meta name="theme-color" content="#e56b6f" />
     <meta name="apple-mobile-web-app-title" content="Семейный ассистент" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <script>
       (() => {
         const stored = localStorage.getItem("fa-theme") || "system";
@@ -16,6 +19,8 @@
           stored === "dark" ||
           (stored === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
         document.documentElement.dataset.theme = dark ? "dark" : "light";
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        if (themeColor) themeColor.setAttribute("content", dark ? "#161821" : "#e56b6f");
       })();
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />

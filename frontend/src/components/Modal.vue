@@ -58,12 +58,12 @@ onUnmounted(unlock);
   display: grid;
   align-items: end;
   padding: 16px;
-  padding-bottom: calc(var(--nav-h) + 16px);
+  padding-bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom, 0px));
 }
 
 .panel {
   width: min(520px, 100%);
-  max-height: min(90vh, calc(100dvh - var(--nav-h) - 32px));
+  max-height: min(90vh, calc(100dvh - var(--nav-h) - 32px - env(safe-area-inset-bottom, 0px)));
   overflow: auto;
   margin-inline: auto;
   padding: 18px 22px 22px;

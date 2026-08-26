@@ -22,8 +22,16 @@ function resolve(next: ThemeMode): "light" | "dark" {
   return next;
 }
 
+const THEME_COLOR = { light: "#e56b6f", dark: "#161821" } as const;
+
+function applyThemeColor(resolved: "light" | "dark") {
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", THEME_COLOR[resolved]);
+}
+
 function apply(resolved: "light" | "dark") {
   document.documentElement.dataset.theme = resolved;
+  applyThemeColor(resolved);
 }
 
 function ensureSystemListener() {

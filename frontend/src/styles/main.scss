@@ -98,7 +98,8 @@ textarea {
 .page {
   width: min(720px, 100%);
   margin: 0 auto;
-  padding: 28px 16px calc(var(--nav-h) + 36px);
+  padding: calc(28px + env(safe-area-inset-top, 0px)) 16px
+    calc(var(--nav-h) + 36px + env(safe-area-inset-bottom, 0px));
   animation: page-in 0.35s ease both;
 }
 
@@ -387,7 +388,7 @@ legend {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  padding: 24px 16px;
+  padding: calc(24px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px));
   background:
     radial-gradient(900px 420px at 15% 0%, var(--bg-glow-a) 0%, transparent 55%),
     radial-gradient(700px 360px at 95% 10%, var(--bg-glow-b) 0%, transparent 50%),
@@ -580,6 +581,6 @@ code,
 
 @media (min-width: 900px) {
   .page {
-    padding-bottom: 40px;
+    padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
   }
 }

@@ -245,7 +245,7 @@ const moreOpen = ref(false);
   position: fixed;
   left: 12px;
   right: 12px;
-  bottom: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   height: calc(var(--nav-h) - 8px);
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -296,7 +296,7 @@ const moreOpen = ref(false);
   display: grid;
   align-items: end;
   padding: 16px;
-  padding-bottom: calc(var(--nav-h) + 16px);
+  padding-bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom, 0px));
   z-index: 30;
 }
 

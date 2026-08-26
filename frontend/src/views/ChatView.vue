@@ -390,7 +390,8 @@ async function reject(draft: Draft) {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  padding-bottom: calc(var(--nav-h) + 12px);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: calc(var(--nav-h) + 12px + env(safe-area-inset-bottom, 0px));
 }
 
 .chat-card {
@@ -731,7 +732,7 @@ async function reject(draft: Draft) {
 
 @media (min-width: 900px) {
   .chat-page {
-    padding-bottom: 28px;
+    padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px));
   }
 }
 </style>

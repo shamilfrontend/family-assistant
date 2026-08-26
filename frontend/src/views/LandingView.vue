@@ -146,7 +146,7 @@ import BrandLogo from "@/components/BrandLogo.vue";
 .landing {
   width: min(1100px, 100%);
   margin: 0 auto;
-  padding: 20px 16px 56px;
+  padding: calc(20px + env(safe-area-inset-top, 0px)) 16px calc(56px + env(safe-area-inset-bottom, 0px));
 }
 
 .landing-nav {
