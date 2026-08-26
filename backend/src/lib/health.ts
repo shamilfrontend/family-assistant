@@ -50,6 +50,60 @@ export function serializeHealthRecord(record: HealthRecordWithEvent) {
   };
 }
 
+export type HealthReminderKind = Exclude<HealthKind, "DOCTOR">;
+
+export type HealthReminder = {
+  id: string;
+  kind: HealthReminderKind;
+  title: string;
+  at: string;
+  member: { id: string; name: string };
+  eventId: string | null;
+};
+
+type HealthRecordForReminder = HealthRecord & {
+  member: { id: string; name: string };
+  event: { id: string } | null;
+};
+
+export function serializeHealthReminder(record: HealthRecordForReminder): HealthReminder | null {
+  const member = { id: record.member.id, name: record.member.name };
+  switch (record.kind) {
+    case "DOCTOR":
+      return null;
+    case "VACCINATION":
+      if (!record.vaccinatedAt) return null;
+      return {
+        id: record.id,
+        kind: record.kind,
+        title: record.vaccineName ?? "прививка",
+        at: formatDate(record.vaccinatedAt),
+        member,
+        eventId: null,
+      };
+    case "CHECKUP":
+      if (!record.checkupAt) return null;
+      return {
+        id: record.id,
+        kind: record.kind,
+        title: record.checkupType ?? "осмотр",
+        at: formatDate(record.checkupAt),
+        member,
+        eventId: null,
+      };
+    case "APPOINTMENT":
+      if (!record.appointmentAt) return null;
+      return {
+        id: record.id,
+        kind: record.kind,
+        title: record.appointmentTitle ?? "приём",
+        at: record.appointmentAt.toISOString(),
+        member,
+        eventId: record.event?.id ?? null,
+      };
+  }
+}
+
 export function compactHealthFact(
   record: HealthRecord,
   member: { id: string; name: string },

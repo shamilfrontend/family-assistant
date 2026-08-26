@@ -295,7 +295,9 @@ describe("events and reminders", () => {
     const res = await request(app).get("/api/v1/reminders").set("Cookie", sid);
     expect(res.status).toBe(200);
     expect(res.body.today.tasks).toEqual([]);
+    expect(res.body.today.health).toEqual([]);
     expect(res.body.soon.documents).toEqual([]);
+    expect(res.body.soon.health).toEqual([]);
     expect(res.body.today.events.map((e: Occ) => e.title)).toContain("Сегодня работа");
     expect(res.body.soon.events.map((e: Occ) => e.title)).toContain("Скоро кружок");
     expect(res.body.soon.events.map((e: Occ) => e.title)).not.toContain("Сегодня работа");

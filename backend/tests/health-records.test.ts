@@ -304,4 +304,91 @@ describe("health records", () => {
     expect(event.status).toBe(200);
     expect(event.body.participantIds).toEqual([child.memberId]);
   });
+
+  it("puts upcoming health records into reminders and hides appointment events", async () => {
+    const parentAuth = await register();
+    const child = await inviteChild(parentAuth.sid);
+    const today = DateTime.now().setZone(tz).startOf("day");
+    const tomorrow = today.plus({ days: 1 });
+    const tomorrowYmd = tomorrow.toFormat("yyyy-MM-dd");
+    const inTen = today.plus({ days: 10 }).set({ hour: 11, minute: 0, second: 0, millisecond: 0 });
+    const appointmentAt = tomorrow.set({ hour: 11, minute: 0, second: 0, millisecond: 0 });
+
+    const appointment = await request(app).post("/api/v1/health-records").set("Cookie", parentAuth.sid).send({
+      memberId: parentAuth.memberId,
+      kind: "APPOINTMENT",
+      appointmentTitle: "Стоматолог",
+      appointmentAt: appointmentAt.toUTC().toISO(),
+    });
+    expect(appointment.status).toBe(201);
+
+    const vaxTomorrow = await request(app).post("/api/v1/health-records").set("Cookie", parentAuth.sid).send({
+      memberId: child.memberId,
+      kind: "VACCINATION",
+      vaccineName: "АКДС",
+      vaccinatedAt: tomorrowYmd,
+    });
+    expect(vaxTomorrow.status).toBe(201);
+
+    const checkup = await request(app).post("/api/v1/health-records").set("Cookie", parentAuth.sid).send({
+      memberId: parentAuth.memberId,
+      kind: "CHECKUP",
+      checkupType: "диспансеризация",
+      checkupAt: tomorrowYmd,
+    });
+    expect(checkup.status).toBe(201);
+
+    const oldVax = await request(app).post("/api/v1/health-records").set("Cookie", parentAuth.sid).send({
+      memberId: parentAuth.memberId,
+      kind: "VACCINATION",
+      vaccineName: "грипп",
+      vaccinatedAt: "2024-04-01",
+    });
+    expect(oldVax.status).toBe(201);
+
+    const later = await request(app).post("/api/v1/health-records").set("Cookie", parentAuth.sid).send({
+      memberId: parentAuth.memberId,
+      kind: "APPOINTMENT",
+      appointmentTitle: "Кардиолог",
+      appointmentAt: inTen.toUTC().toISO(),
+    });
+    expect(later.status).toBe(201);
+
+    await request(app).post("/api/v1/health-records").set("Cookie", parentAuth.sid).send({
+      memberId: parentAuth.memberId,
+      kind: "DOCTOR",
+      doctorName: "Иванова",
+      specialty: "педиатр",
+    });
+
+    const reminders = await request(app).get("/api/v1/reminders").set("Cookie", parentAuth.sid);
+    expect(reminders.status).toBe(200);
+    expect(reminders.body.today.health).toEqual([]);
+    const soonTitles = reminders.body.soon.health.map((item: { title: string }) => item.title);
+    expect(soonTitles).toHaveLength(3);
+    expect(soonTitles).toEqual(expect.arrayContaining(["Стоматолог", "АКДС", "диспансеризация"]));
+    expect(soonTitles).not.toContain("грипп");
+    expect(soonTitles).not.toContain("Кардиолог");
+    expect(soonTitles).not.toContain("Иванова");
+    expect(reminders.body.soon.events.map((item: { title: string }) => item.title)).not.toContain("Стоматолог");
+    expect(reminders.body.today.events.map((item: { title: string }) => item.title)).not.toContain("Стоматолог");
+
+    const dentist = reminders.body.soon.health.find((item: { title: string }) => item.title === "Стоматолог");
+    expect(dentist).toMatchObject({
+      kind: "APPOINTMENT",
+      title: "Стоматолог",
+      eventId: appointment.body.eventId,
+      member: { id: parentAuth.memberId, name: "Анна" },
+    });
+
+    const childReminders = await request(app).get("/api/v1/reminders").set("Cookie", child.sid);
+    expect(childReminders.status).toBe(200);
+    expect(childReminders.body.soon.health).toHaveLength(1);
+    expect(childReminders.body.soon.health[0]).toMatchObject({
+      kind: "VACCINATION",
+      title: "АКДС",
+      at: tomorrowYmd,
+      member: { id: child.memberId, name: "Дима" },
+    });
+  });
 });

@@ -266,19 +266,23 @@ Query `GET /health-records`: `memberId?`. Ребёнок — только сво
 {
   "today": {
     "events": [],
-    "tasks": []
+    "tasks": [],
+    "health": []
   },
   "soon": {
     "events": [],
-    "documents": []
+    "documents": [],
+    "health": []
   }
 }
 ```
 
-- `today.events` — вхождения на сегодня (ребёнок — свои).
+- `today.events` — вхождения на сегодня (ребёнок — свои). Без `HEALTH_APPOINTMENT`: приёмы из здоровья — в `health`.
 - `today.tasks` — открытые дела со сроком сегодня (1.4; до 1.4 — `[]`).
-- `soon.events` — с `remindInUi`, сегодня … +7 дней.
+- `today.health` — приёмы, прививки и осмотры на сегодня (ребёнок — свои). `{ id, kind, title, at, member: { id, name }, eventId }`. `at` — ISO у приёма, `YYYY-MM-DD` у прививки и осмотра.
+- `soon.events` — с `remindInUi`, сегодня … +7 дней. Без `HEALTH_APPOINTMENT`.
 - `soon.documents` — истекают в ближайшие 30 дней (1.4; маска, без номера).
+- `soon.health` — приёмы, прививки и осмотры на завтра … +7 дней (1.5). Врач (`DOCTOR`) и прошлые даты не входят. Аудит `HEALTH_READ` не пишется.
 
 ---
 

@@ -118,3 +118,14 @@ export function recordTitle(record: HealthRecord) {
       return record.appointmentTitle ?? "приём";
   }
 }
+
+export type HealthReminderKind = Exclude<HealthKind, "DOCTOR">;
+
+export type HealthReminder = {
+  id: string;
+  kind: HealthReminderKind;
+  title: string;
+  at: string;
+  member: { id: string; name: string };
+  eventId: string | null;
+};

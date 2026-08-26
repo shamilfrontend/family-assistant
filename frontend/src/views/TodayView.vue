@@ -96,6 +96,22 @@
 
       <section class="card stack">
         <div class="section-head">
+          <h2>Здоровье</h2>
+          <RouterLink to="/health">Все</RouterLink>
+        </div>
+        <div v-if="healthItems.length === 0" class="empty">
+          <p class="muted">Нет приёмов, прививок и осмотров на ближайшие дни.</p>
+        </div>
+        <div v-else class="list">
+          <RouterLink v-for="item in healthItems" :key="item.id" :to="`/health/${item.member.id}`">
+            <span>{{ healthLine(item) }}</span>
+            <span class="muted meta">{{ whenHealth(item) }}</span>
+          </RouterLink>
+        </div>
+      </section>
+
+      <section class="card stack">
+        <div class="section-head">
           <h2>Документы скоро истекают</h2>
           <RouterLink to="/documents">Все</RouterLink>
         </div>
@@ -116,12 +132,14 @@
 </template>
 
 <script setup lang="ts">
+import { DateTime } from "luxon";
 import { computed, onMounted, ref } from "vue";
 import { api, getApiError } from "@/api/client";
 import EventFormModal from "@/components/EventFormModal.vue";
 import { formatMoney, type BudgetSummary } from "@/lib/budget";
 import { documentTypeLabel, type FamilyDocument } from "@/lib/documents";
 import { eventLink, type Occurrence } from "@/lib/events";
+import { healthKindLabel, type HealthReminder } from "@/lib/health";
 import type { Task } from "@/lib/tasks";
 import { familyNow, formatDate, formatTime, fromIso, ymd } from "@/lib/time";
 import { useAuthStore } from "@/stores/auth";
@@ -135,7 +153,13 @@ const today = ref<Occurrence[]>([]);
 const soon = ref<Occurrence[]>([]);
 const todayTasks = ref<Task[]>([]);
 const soonDocs = ref<FamilyDocument[]>([]);
+const todayHealth = ref<HealthReminder[]>([]);
+const soonHealth = ref<HealthReminder[]>([]);
 const budgetSummary = ref<BudgetSummary | null>(null);
+
+const healthItems = computed(() =>
+  [...todayHealth.value, ...soonHealth.value].sort((a, b) => a.at.localeCompare(b.at)),
+);
 
 const spentCategories = computed(
   () => budgetSummary.value?.byCategory.filter((row) => row.total > 0) ?? [],
@@ -152,7 +176,7 @@ const heroDate = computed(() => now.value.setLocale("ru").toFormat("d MMMM"));
 
 const heroSub = computed(() => {
   if (error.value) return "Не удалось загрузить день";
-  const n = today.value.length;
+  const n = today.value.length + todayHealth.value.length;
   if (n === 0) return "Свободный день — можно выдохнуть";
   if (n === 1) return "1 событие на сегодня";
   if (n < 5) return `${n} события на сегодня`;
@@ -164,6 +188,20 @@ function whenSoon(item: Occurrence): string {
   return item.allDay ? date : `${date} ${formatTime(item.occurrenceStart, tz.value)}`;
 }
 
+function healthLine(item: HealthReminder): string {
+  return `${item.member.name} · ${healthKindLabel(item.kind)} · ${item.title}`;
+}
+
+function whenHealth(item: HealthReminder): string {
+  if (item.kind === "APPOINTMENT") {
+    const time = formatTime(item.at, tz.value);
+    if (ymd(fromIso(item.at, tz.value)) === todayYmd.value) return time;
+    return `${formatDate(item.at, tz.value)} ${time}`;
+  }
+  if (item.at === todayYmd.value) return "сегодня";
+  return DateTime.fromISO(item.at, { zone: tz.value }).setLocale("ru").toFormat("d MMMM, cccc");
+}
+
 onMounted(() => {
   void load();
 });
@@ -173,8 +211,8 @@ async function load() {
   budgetError.value = "";
 
   const remindersReq = api.get<{
-    today: { events: Occurrence[]; tasks: Task[] };
-    soon: { events: Occurrence[]; documents: FamilyDocument[] };
+    today: { events: Occurrence[]; tasks: Task[]; health: HealthReminder[] };
+    soon: { events: Occurrence[]; documents: FamilyDocument[]; health: HealthReminder[] };
   }>("/reminders");
   const budgetReq = auth.isAdult ? api.get<BudgetSummary>("/budget/summary") : null;
 
@@ -182,11 +220,15 @@ async function load() {
     const { data } = await remindersReq;
     today.value = data.today.events;
     todayTasks.value = data.today.tasks;
+    todayHealth.value = data.today.health;
     const todayKey = ymd(familyNow(tz.value));
     soon.value = data.soon.events.filter((item) => ymd(fromIso(item.occurrenceStart, tz.value)) !== todayKey);
     soonDocs.value = data.soon.documents;
+    soonHealth.value = data.soon.health;
   } catch (err) {
     error.value = getApiError(err).message;
+    todayHealth.value = [];
+    soonHealth.value = [];
   }
 
   if (!budgetReq) return;
