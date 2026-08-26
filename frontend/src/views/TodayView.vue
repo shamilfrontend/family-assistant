@@ -6,32 +6,12 @@
       <p class="hero-sub muted">{{ heroSub }}</p>
     </header>
 
-    <div v-if="auth.isAdult" class="actions-grid">
-      <button class="action-card action-card--primary" type="button" @click="createOpen = true">
-        <div>
-          <p class="action-title">Добавить событие</p>
-          <p class="action-sub">В календарь семьи</p>
-        </div>
-        <span class="action-arrow" aria-hidden="true">→</span>
-      </button>
-      <RouterLink class="action-card action-card--secondary" to="/calendar">
-        <div>
-          <p class="action-title">Открыть календарь</p>
-          <p class="action-sub">Месяц и список</p>
-        </div>
-        <span class="action-arrow" aria-hidden="true">→</span>
-      </RouterLink>
-    </div>
-
     <p v-if="error" class="alert">{{ error }}</p>
 
     <section v-else class="card stack">
       <div class="section-head">
         <h2>События</h2>
-        <div class="head-actions">
-          <RouterLink to="/calendar">Календарь</RouterLink>
-          <button v-if="auth.isAdult" type="button" @click="createOpen = true">Добавить</button>
-        </div>
+        <button v-if="auth.isAdult" type="button" @click="createOpen = true">Добавить</button>
       </div>
       <div class="event-tabs" role="tablist">
         <button
@@ -312,12 +292,6 @@ async function load() {
   font-weight: 600;
 }
 
-.head-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 .event-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -363,11 +337,5 @@ async function load() {
 .list a.past span:first-child {
   text-decoration: line-through;
   color: var(--muted);
-}
-
-@media (max-width: 420px) {
-  .actions-grid {
-    grid-template-columns: 1fr;
-  }
 }
 </style>
