@@ -5,9 +5,20 @@
         <h1>Бюджет</h1>
         <div class="row">
           <button class="btn btn--ghost" type="button" @click="openCategories">Категории</button>
+          <button class="btn btn--ghost" type="button" :disabled="importLoading" @click="pickStatement">
+            Выписка Т-Банка
+          </button>
           <button type="button" @click="openCreate">Добавить</button>
         </div>
       </div>
+      <input
+        ref="csvInput"
+        class="file-input"
+        type="file"
+        accept=".csv,text/csv"
+        @change="onStatementSelected"
+      />
+      <p class="muted hint">CSV из операций Т-Банка — файл вроде Operations_….csv. Доходы в журнал не попадут.</p>
       <div class="month-nav">
         <button class="btn btn--ghost" type="button" aria-label="Предыдущий месяц" @click="moveMonth(-1)">
           ←
@@ -18,6 +29,7 @@
         </button>
       </div>
       <p class="total">{{ formatMoney(summary?.total ?? 0) }}</p>
+      <p v-if="importNotice" class="muted">{{ importNotice }}</p>
       <p v-if="error" class="alert">{{ error }}</p>
     </div>
 
@@ -116,6 +128,7 @@ import {
   shiftMonth,
   type BudgetCategory,
   type BudgetExpense,
+  type BudgetImportResult,
   type BudgetSummary,
 } from "@/lib/budget";
 import { useAuthStore } from "@/stores/auth";
@@ -129,6 +142,9 @@ const items = ref<BudgetExpense[]>([]);
 const categories = ref<BudgetCategory[]>([]);
 const members = ref<{ id: string; name: string }[]>([]);
 const error = ref("");
+const importNotice = ref("");
+const importLoading = ref(false);
+const csvInput = ref<HTMLInputElement | null>(null);
 const formOpen = ref(false);
 const formError = ref("");
 const formLoading = ref(false);
@@ -174,10 +190,45 @@ onMounted(async () => {
 
 async function moveMonth(delta: number) {
   month.value = shiftMonth(month.value, delta);
+  importNotice.value = "";
   try {
     await load();
   } catch (err) {
     error.value = getApiError(err).message;
+  }
+}
+
+function pickStatement() {
+  csvInput.value?.click();
+}
+
+function formatImportResult(result: BudgetImportResult): string {
+  const parts = [`Добавлено ${result.imported}`];
+  if (result.skippedDuplicate > 0) parts.push(`уже были ${result.skippedDuplicate}`);
+  if (result.skippedOther > 0) parts.push(`пропущено ${result.skippedOther}`);
+  let text = `${parts.join(", ")}.`;
+  if (result.errors.length > 0) text += ` Строки с ошибкой: ${result.errors.length}.`;
+  return text;
+}
+
+async function onStatementSelected(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  importNotice.value = "";
+  error.value = "";
+  importLoading.value = true;
+  const body = new FormData();
+  body.append("file", file);
+  try {
+    const res = await api.post<BudgetImportResult>("/budget/import", body);
+    importNotice.value = formatImportResult(res.data);
+    await load();
+  } catch (err) {
+    error.value = getApiError(err).message;
+  } finally {
+    importLoading.value = false;
   }
 }
 
@@ -322,6 +373,23 @@ async function removeCategory(cat: BudgetCategory) {
   font-family: var(--font-display);
   font-weight: 700;
   text-align: center;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .total {

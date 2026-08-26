@@ -246,6 +246,7 @@ Query `GET /health-records`: `memberId?`. Ребёнок — только сво
 | POST | `/budget/expenses` | 2 | взрослый | `{ title, amount, categoryId, spentByMemberId, spentAt? }` — `spentAt` по умолчанию сегодня семьи; `amount` > 0 |
 | PATCH | `/budget/expenses/:id` | 2 | взрослый | частичные те же поля |
 | DELETE | `/budget/expenses/:id` | 2 | взрослый | |
+| POST | `/budget/import` | 2 | взрослый | `multipart/form-data`, поле `file` — CSV операций Т-Банка (старый формат с «Сумма платежа» или текущий с «Сумма операции» / «Категория по-умолчанию»; UTF-8 или Windows-1251). Статус `OK` или `Ок`. Ответ: `{ imported, skippedDuplicate, skippedOther, errors: [{ line, message }] }`. Только списания в RUB; повтор той же строки не дублирует. «Кто потратил» — загрузивший. Файл не хранится. |
 | GET | `/budget/categories` | 2 | взрослый | `{ items: [{ id, name, sortOrder }] }` |
 | POST | `/budget/categories` | 2 | взрослый | `{ name }` |
 | PATCH | `/budget/categories/:id` | 2 | взрослый | `{ name?, sortOrder? }` |

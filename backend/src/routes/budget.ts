@@ -7,6 +7,7 @@ import { conflict, validation } from "../lib/errors.js";
 import {
   assertCategoryNameAvailable,
   createExpense,
+  importParsedExpenses,
   loadCategory,
   loadExpense,
   nextCategorySortOrder,
@@ -14,6 +15,13 @@ import {
   serializeCategory,
   serializeExpense,
 } from "../lib/budget.js";
+import { readMultipartFile } from "../lib/multipart.js";
+import {
+  decodeTbankCsv,
+  mapTbankCategory,
+  parseTbankCsv,
+  TBANK_CSV_MAX_BYTES,
+} from "../lib/tbank-csv.js";
 import {
   asRecord,
   formatDate,
@@ -31,6 +39,40 @@ import { startOfToday } from "../lib/time.js";
 export const budgetRouter = Router();
 
 budgetRouter.use(requireAuth, requireAdult);
+
+budgetRouter.post("/import", async (req, res, next) => {
+  try {
+    const actor = req.actor!;
+    const file = await readMultipartFile(req, "file", TBANK_CSV_MAX_BYTES);
+    const parsed = parseTbankCsv(decodeTbankCsv(file.buffer));
+    const categories = await prisma.budgetCategory.findMany({
+      where: { familyId: actor.familyId },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: { id: true, name: true },
+    });
+    const items = parsed.expenses.map((row) => ({
+      title: row.title,
+      amount: row.amount,
+      spentAt: row.spentAt,
+      categoryId: mapTbankCategory(row.bankCategory, categories),
+      fingerprint: row.fingerprint,
+    }));
+    const result = await importParsedExpenses({
+      familyId: actor.familyId,
+      spentByMemberId: actor.memberId,
+      createdByMemberId: actor.memberId,
+      items,
+    });
+    res.json({
+      imported: result.imported,
+      skippedDuplicate: result.skippedDuplicate,
+      skippedOther: parsed.skippedOther,
+      errors: parsed.errors,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 budgetRouter.get("/summary", async (req, res, next) => {
   try {

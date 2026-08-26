@@ -102,6 +102,7 @@ export async function createExpense(data: {
   spentByMemberId: string;
   createdByMemberId: string;
   spentAt: Date;
+  importFingerprint?: string;
 }): Promise<ExpenseWithRefs> {
   await assertCategoryInFamily(data.familyId, data.categoryId);
   await assertMemberInFamily(data.familyId, data.spentByMemberId);
@@ -114,11 +115,69 @@ export async function createExpense(data: {
       spentByMemberId: data.spentByMemberId,
       createdByMemberId: data.createdByMemberId,
       spentAt: data.spentAt,
+      importFingerprint: data.importFingerprint,
     },
     include: {
       category: { select: { id: true, name: true } },
       spentBy: { select: { id: true, name: true } },
     },
+  });
+}
+
+export async function importParsedExpenses(data: {
+  familyId: string;
+  spentByMemberId: string;
+  createdByMemberId: string;
+  items: {
+    title: string;
+    amount: number;
+    spentAt: Date;
+    categoryId: string;
+    fingerprint: string;
+  }[];
+}): Promise<{ imported: number; skippedDuplicate: number }> {
+  if (data.items.length === 0) return { imported: 0, skippedDuplicate: 0 };
+  await assertMemberInFamily(data.familyId, data.spentByMemberId);
+
+  const unique = new Map<string, (typeof data.items)[number]>();
+  let skippedDuplicate = 0;
+  for (const item of data.items) {
+    if (unique.has(item.fingerprint)) {
+      skippedDuplicate += 1;
+      continue;
+    }
+    unique.set(item.fingerprint, item);
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.expense.findMany({
+      where: {
+        familyId: data.familyId,
+        importFingerprint: { in: [...unique.keys()] },
+      },
+      select: { importFingerprint: true },
+    });
+    for (const row of existing) {
+      if (row.importFingerprint) unique.delete(row.importFingerprint);
+    }
+    skippedDuplicate += existing.length;
+
+    const toCreate = [...unique.values()];
+    if (toCreate.length > 0) {
+      await tx.expense.createMany({
+        data: toCreate.map((item) => ({
+          familyId: data.familyId,
+          title: item.title,
+          amount: item.amount,
+          categoryId: item.categoryId,
+          spentByMemberId: data.spentByMemberId,
+          createdByMemberId: data.createdByMemberId,
+          spentAt: item.spentAt,
+          importFingerprint: item.fingerprint,
+        })),
+      });
+    }
+    return { imported: toCreate.length, skippedDuplicate };
   });
 }
 

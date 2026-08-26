@@ -327,6 +327,8 @@ model Expense {
   amount            Decimal  @db.Decimal(12, 2)
   /// Календарный день в поясе семьи
   spentAt           DateTime @db.Date
+  /// sha256 от дата операции|сумма платежа|описание|карта. Пусто у ручных расходов
+  importFingerprint String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -335,6 +337,7 @@ model Expense {
   spentBy   Member         @relation("ExpenseSpentBy", fields: [spentByMemberId], references: [id], onDelete: Cascade)
   createdBy Member?        @relation("ExpenseCreator", fields: [createdByMemberId], references: [id], onDelete: SetNull)
 
+  @@unique([familyId, importFingerprint])
   @@index([familyId, spentAt])
   @@index([categoryId])
   @@index([spentByMemberId])

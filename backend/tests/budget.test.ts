@@ -1,9 +1,13 @@
 import { DateTime } from "luxon";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import request from "supertest";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { prisma } from "../src/lib/prisma.js";
 import { DELETION_KEYS } from "../src/lib/rbac.js";
+import { TBANK_CSV_FIXTURE } from "./tbank-csv.test.js";
 
 const app = createApp();
 const tz = "Europe/Moscow";
@@ -144,6 +148,13 @@ describe("budget", () => {
       expect(res.status).toBe(403);
       expect(res.body.error.code).toBe("forbidden");
     }
+
+    const imported = await request(app)
+      .post("/api/v1/budget/import")
+      .set("Cookie", child.sid)
+      .attach("file", Buffer.from(TBANK_CSV_FIXTURE), "ops.csv");
+    expect(imported.status).toBe(403);
+    expect(imported.body.error.code).toBe("forbidden");
   });
 
   it("does not delete a category that has expenses", async () => {
@@ -208,5 +219,81 @@ describe("budget", () => {
     expect(gone.status).toBe(204);
     expect(await prisma.expense.count()).toBe(0);
     expect(await prisma.budgetCategory.count()).toBe(0);
+  });
+
+  it("imports a T-Bank CSV, skips non-expenses, and does not duplicate on reimport", async () => {
+    const { sid, memberId } = await register();
+    const first = await request(app)
+      .post("/api/v1/budget/import")
+      .set("Cookie", sid)
+      .attach("file", Buffer.from(TBANK_CSV_FIXTURE), "ops.csv");
+    expect(first.status).toBe(200);
+    expect(first.body).toMatchObject({
+      imported: 5,
+      skippedDuplicate: 0,
+      skippedOther: 3,
+    });
+    expect(first.body.errors).toEqual([{ line: 10, message: "Невалидная дата" }]);
+
+    const list = await request(app)
+      .get("/api/v1/budget/expenses")
+      .query({ month: "2018-10" })
+      .set("Cookie", sid);
+    expect(list.status).toBe(200);
+    expect(list.body.items).toHaveLength(5);
+    const byTitle = Object.fromEntries(
+      list.body.items.map((item: { title: string; amount: number; categoryName: string; spentByMemberId: string }) => [
+        item.title,
+        item,
+      ]),
+    );
+    expect(byTitle["Пятерочка"].amount).toBe(1053.77);
+    expect(byTitle["Пятерочка"].categoryName).toBe("Продукты");
+    expect(byTitle["Горздрав"].categoryName).toBe("Аптека");
+    expect(byTitle["Яндекс Такси"].categoryName).toBe("Транспорт");
+    expect(byTitle["Перевод Маме"].categoryName).toBe("Другое");
+    expect(byTitle["Пятерочка"].spentByMemberId).toBe(memberId);
+
+    const second = await request(app)
+      .post("/api/v1/budget/import")
+      .set("Cookie", sid)
+      .attach("file", Buffer.from(TBANK_CSV_FIXTURE), "ops.csv");
+    expect(second.status).toBe(200);
+    expect(second.body.imported).toBe(0);
+    expect(second.body.skippedDuplicate).toBe(5);
+    expect(await prisma.expense.count()).toBe(5);
+  });
+
+  it("imports the current T-Bank operations CSV", async () => {
+    const { sid } = await register();
+    const csv = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), "fixtures/tbank-operations-2026-07.csv"),
+    );
+    const res = await request(app)
+      .post("/api/v1/budget/import")
+      .set("Cookie", sid)
+      .attach("file", csv, "Operations_Wed_Jul_01_2026-Fri_Jul_31_2026.csv");
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ imported: 8, skippedDuplicate: 0, skippedOther: 8 });
+    expect(res.body.errors).toEqual([]);
+
+    const list = await request(app)
+      .get("/api/v1/budget/expenses")
+      .query({ month: "2026-07" })
+      .set("Cookie", sid);
+    expect(list.body.items).toHaveLength(8);
+    const ozon = list.body.items.find((item: { title: string }) => item.title === "Ozon");
+    expect(ozon.amount).toBe(2273);
+    expect(ozon.categoryName).toBe("Быт");
+  });
+
+  it("rejects a file that is not a T-Bank statement", async () => {
+    const { sid } = await register();
+    const res = await request(app)
+      .post("/api/v1/budget/import")
+      .set("Cookie", sid)
+      .attach("file", Buffer.from("Date,Amount\n1,2"), "other.csv");
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe("validation");
   });
 });

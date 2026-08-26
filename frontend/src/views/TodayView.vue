@@ -23,6 +23,26 @@
       </RouterLink>
     </div>
 
+    <section v-if="auth.isAdult" class="card stack">
+      <div class="section-head">
+        <h2>Расходы за текущий месяц</h2>
+        <RouterLink to="/budget">Все</RouterLink>
+      </div>
+      <p v-if="budgetError" class="alert">{{ budgetError }}</p>
+      <template v-else>
+        <p class="budget-total">{{ formatMoney(budgetSummary?.total ?? 0) }}</p>
+        <div v-if="spentCategories.length === 0" class="empty">
+          <p class="muted">Пока нет расходов в этом месяце.</p>
+        </div>
+        <div v-else class="list">
+          <div v-for="row in spentCategories" :key="row.id" class="list-item">
+            <span>{{ row.name }}</span>
+            <span class="muted">{{ formatMoney(row.total) }}</span>
+          </div>
+        </div>
+      </template>
+    </section>
+
     <p v-if="error" class="alert">{{ error }}</p>
 
     <template v-else>
@@ -99,6 +119,7 @@
 import { computed, onMounted, ref } from "vue";
 import { api, getApiError } from "@/api/client";
 import EventFormModal from "@/components/EventFormModal.vue";
+import { formatMoney, type BudgetSummary } from "@/lib/budget";
 import { documentTypeLabel, type FamilyDocument } from "@/lib/documents";
 import { eventLink, type Occurrence } from "@/lib/events";
 import type { Task } from "@/lib/tasks";
@@ -108,11 +129,17 @@ import { useAuthStore } from "@/stores/auth";
 const auth = useAuthStore();
 const tz = computed(() => auth.me?.family.timezone ?? "UTC");
 const error = ref("");
+const budgetError = ref("");
 const createOpen = ref(false);
 const today = ref<Occurrence[]>([]);
 const soon = ref<Occurrence[]>([]);
 const todayTasks = ref<Task[]>([]);
 const soonDocs = ref<FamilyDocument[]>([]);
+const budgetSummary = ref<BudgetSummary | null>(null);
+
+const spentCategories = computed(
+  () => budgetSummary.value?.byCategory.filter((row) => row.total > 0) ?? [],
+);
 
 const now = computed(() => familyNow(tz.value));
 const todayYmd = computed(() => ymd(now.value));
@@ -143,11 +170,16 @@ onMounted(() => {
 
 async function load() {
   error.value = "";
+  budgetError.value = "";
+
+  const remindersReq = api.get<{
+    today: { events: Occurrence[]; tasks: Task[] };
+    soon: { events: Occurrence[]; documents: FamilyDocument[] };
+  }>("/reminders");
+  const budgetReq = auth.isAdult ? api.get<BudgetSummary>("/budget/summary") : null;
+
   try {
-    const { data } = await api.get<{
-      today: { events: Occurrence[]; tasks: Task[] };
-      soon: { events: Occurrence[]; documents: FamilyDocument[] };
-    }>("/reminders");
+    const { data } = await remindersReq;
     today.value = data.today.events;
     todayTasks.value = data.today.tasks;
     const todayKey = ymd(familyNow(tz.value));
@@ -155,6 +187,15 @@ async function load() {
     soonDocs.value = data.soon.documents;
   } catch (err) {
     error.value = getApiError(err).message;
+  }
+
+  if (!budgetReq) return;
+  try {
+    const { data } = await budgetReq;
+    budgetSummary.value = data;
+  } catch (err) {
+    budgetError.value = getApiError(err).message;
+    budgetSummary.value = null;
   }
 }
 </script>
@@ -189,6 +230,14 @@ async function load() {
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
+}
+
+.budget-total {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
 }
 
 .meta {

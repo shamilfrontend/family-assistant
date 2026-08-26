@@ -23,6 +23,13 @@ export type BudgetSummary = {
   byMember: { memberId: string; name: string; total: number }[];
 };
 
+export type BudgetImportResult = {
+  imported: number;
+  skippedDuplicate: number;
+  skippedOther: number;
+  errors: { line: number; message: string }[];
+};
+
 const money = new Intl.NumberFormat("ru-RU", {
   style: "currency",
   currency: "RUB",
