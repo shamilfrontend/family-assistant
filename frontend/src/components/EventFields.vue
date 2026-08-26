@@ -1,6 +1,6 @@
 <template>
   <div class="stack">
-    <label>Название <input v-model="form.title" required maxlength="120" /></label>
+    <label>Название <input v-model="form.title" required maxlength="120" placeholder="День рождения" /></label>
     <label>
       Тип
       <select v-model="form.type">

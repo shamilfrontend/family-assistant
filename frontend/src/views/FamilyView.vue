@@ -2,7 +2,10 @@
   <div class="page stack">
     <div class="card stack">
       <h1>Настройка семьи</h1>
-      <h2>Участники</h2>
+      <div class="section-head">
+        <h2>Участники</h2>
+        <button type="button" @click="openMember">Добавить</button>
+      </div>
       <p v-if="membersError" class="alert">{{ membersError }}</p>
       <div class="list">
         <RouterLink v-for="item in members" :key="item.id" :to="`/family/members/${item.id}`">
@@ -17,24 +20,11 @@
       </div>
     </div>
 
-    <form class="card stack" @submit.prevent="createMember">
-      <h2>Новая карточка без входа</h2>
-      <label>Имя <input v-model="memberForm.name" required maxlength="80" /></label>
-      <label>
-        Роль
-        <select v-model="memberForm.role">
-          <option value="CHILD">ребёнок</option>
-          <option value="ADULT">взрослый</option>
-        </select>
-      </label>
-      <label>Дата рождения <input v-model="memberForm.birthDate" type="date" required /></label>
-      <label>Телефон <input v-model="memberForm.phone" /></label>
-      <label>Особенности <textarea v-model="memberForm.allergies" rows="2" /></label>
-      <button class="btn" type="submit" :disabled="membersLoading">Добавить</button>
-    </form>
-
     <div class="card stack">
-      <h2>Приглашения</h2>
+      <div class="section-head">
+        <h2>Приглашения</h2>
+        <button type="button" @click="openInvite">Выдать ссылку</button>
+      </div>
       <p class="muted">Ссылка показывается один раз — сразу скопируйте её.</p>
       <p v-if="invitesError" class="alert">{{ invitesError }}</p>
       <p v-if="createdInvite" class="alert alert--ok">
@@ -54,27 +44,6 @@
       </div>
       <p v-else class="muted">Нет активных приглашений</p>
     </div>
-
-    <form class="card stack" @submit.prevent="createInvite">
-      <h2>Выдать ссылку</h2>
-      <div class="field-grid field-grid--2">
-        <label>
-          Роль
-          <select v-model="inviteForm.role">
-            <option value="ADULT">взрослый</option>
-            <option value="CHILD">ребёнок</option>
-          </select>
-        </label>
-        <label>
-          Карточка
-          <select v-model="inviteForm.memberId">
-            <option value="">Новая карточка</option>
-            <option v-for="m in openCards" :key="m.id" :value="m.id">{{ m.name }}</option>
-          </select>
-        </label>
-      </div>
-      <button class="btn" type="submit" :disabled="invitesLoading">Создать ссылку</button>
-    </form>
 
     <div class="card stack">
       <h2>Часовой пояс</h2>
@@ -106,6 +75,47 @@
         Удалить семью
       </button>
     </div>
+
+    <Modal :open="memberOpen" title="Новая карточка без входа" @close="memberOpen = false">
+      <form class="stack" @submit.prevent="createMember">
+        <p v-if="memberFormError" class="alert">{{ memberFormError }}</p>
+        <label>Имя <input v-model="memberForm.name" required maxlength="80" placeholder="Анна" /></label>
+        <label>
+          Роль
+          <select v-model="memberForm.role">
+            <option value="CHILD">ребёнок</option>
+            <option value="ADULT">взрослый</option>
+          </select>
+        </label>
+        <label>Дата рождения <input v-model="memberForm.birthDate" type="date" required /></label>
+        <label>Телефон <input v-model="memberForm.phone" placeholder="+7 900 123-45-67" /></label>
+        <label>Особенности <textarea v-model="memberForm.allergies" rows="2" placeholder="орехи, лактоза" /></label>
+        <button class="btn" type="submit" :disabled="membersLoading">Добавить</button>
+      </form>
+    </Modal>
+
+    <Modal :open="inviteOpen" title="Выдать ссылку" @close="inviteOpen = false">
+      <form class="stack" @submit.prevent="createInvite">
+        <p v-if="inviteFormError" class="alert">{{ inviteFormError }}</p>
+        <div class="field-grid field-grid--2">
+          <label>
+            Роль
+            <select v-model="inviteForm.role">
+              <option value="ADULT">взрослый</option>
+              <option value="CHILD">ребёнок</option>
+            </select>
+          </label>
+          <label>
+            Карточка
+            <select v-model="inviteForm.memberId">
+              <option value="">Новая карточка</option>
+              <option v-for="m in openCards" :key="m.id" :value="m.id">{{ m.name }}</option>
+            </select>
+          </label>
+        </div>
+        <button class="btn" type="submit" :disabled="invitesLoading">Создать ссылку</button>
+      </form>
+    </Modal>
   </div>
 </template>
 
@@ -113,6 +123,7 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { api, getApiError } from "@/api/client";
+import Modal from "@/components/Modal.vue";
 import { formatDate } from "@/lib/time";
 import { useAuthStore } from "@/stores/auth";
 
@@ -153,6 +164,8 @@ const router = useRouter();
 const members = ref<Member[]>([]);
 const membersError = ref("");
 const membersLoading = ref(false);
+const memberOpen = ref(false);
+const memberFormError = ref("");
 const memberForm = reactive({
   name: "",
   role: "CHILD" as "ADULT" | "CHILD",
@@ -164,6 +177,8 @@ const memberForm = reactive({
 const invites = ref<Invite[]>([]);
 const invitesError = ref("");
 const invitesLoading = ref(false);
+const inviteOpen = ref(false);
+const inviteFormError = ref("");
 const createdInvite = ref<{ url: string } | null>(null);
 const inviteForm = reactive({ role: "CHILD" as "ADULT" | "CHILD", memberId: "" });
 const openCards = computed(() =>
@@ -205,8 +220,18 @@ onMounted(async () => {
   }
 });
 
+function openMember() {
+  memberFormError.value = "";
+  memberForm.name = "";
+  memberForm.role = "CHILD";
+  memberForm.birthDate = "";
+  memberForm.phone = "";
+  memberForm.allergies = "";
+  memberOpen.value = true;
+}
+
 async function createMember() {
-  membersError.value = "";
+  memberFormError.value = "";
   membersLoading.value = true;
   try {
     await api.post("/members", {
@@ -216,20 +241,24 @@ async function createMember() {
       phone: memberForm.phone || undefined,
       allergies: memberForm.allergies || undefined,
     });
-    memberForm.name = "";
-    memberForm.birthDate = "";
-    memberForm.phone = "";
-    memberForm.allergies = "";
+    memberOpen.value = false;
     await loadMembers();
   } catch (err) {
-    membersError.value = getApiError(err).message;
+    memberFormError.value = getApiError(err).message;
   } finally {
     membersLoading.value = false;
   }
 }
 
+function openInvite() {
+  inviteFormError.value = "";
+  inviteForm.role = "CHILD";
+  inviteForm.memberId = "";
+  inviteOpen.value = true;
+}
+
 async function createInvite() {
-  invitesError.value = "";
+  inviteFormError.value = "";
   createdInvite.value = null;
   invitesLoading.value = true;
   try {
@@ -238,9 +267,10 @@ async function createInvite() {
       memberId: inviteForm.memberId || undefined,
     });
     createdInvite.value = data;
+    inviteOpen.value = false;
     await loadInvites();
   } catch (err) {
-    invitesError.value = getApiError(err).message;
+    inviteFormError.value = getApiError(err).message;
   } finally {
     invitesLoading.value = false;
   }

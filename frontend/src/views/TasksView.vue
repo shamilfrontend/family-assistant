@@ -3,34 +3,13 @@
     <div class="card stack">
       <div class="section-head">
         <h1>{{ auth.isAdult ? "Дела" : "Мои дела" }}</h1>
-        <label v-if="auth.isAdult" class="hide">
-          <input v-model="onlyOpen" type="checkbox" @change="load" />
-          только открытые
-        </label>
+        <button v-if="auth.isAdult" type="button" @click="openCreate">Добавить</button>
       </div>
+      <label v-if="auth.isAdult" class="hide">
+        <input v-model="onlyOpen" type="checkbox" @change="load" />
+        только открытые
+      </label>
       <p v-if="error" class="alert">{{ error }}</p>
-      <form v-if="auth.isAdult" class="stack add-form" @submit.prevent="create">
-        <label>Название <input v-model="form.title" required maxlength="120" /></label>
-        <div class="field-grid field-grid--2">
-          <label>
-            Исполнитель
-            <select v-model="form.assigneeMemberId" required>
-              <option v-for="member in members" :key="member.id" :value="member.id">{{ member.name }}</option>
-            </select>
-          </label>
-          <label>
-            Повтор
-            <select v-model="form.recurrence">
-              <option v-for="item in TASK_RECURRENCE" :key="item.value" :value="item.value">{{ item.label }}</option>
-            </select>
-          </label>
-        </div>
-        <label>Срок <input v-model="form.dueAt" type="datetime-local" required /></label>
-        <button class="btn" type="submit" :disabled="loading">Добавить</button>
-      </form>
-    </div>
-
-    <div class="card stack">
       <div v-if="items.length === 0" class="empty">
         <p class="muted">{{ auth.isAdult ? "Дел пока нет." : "У вас нет дел." }}</p>
       </div>
@@ -51,12 +30,36 @@
         </div>
       </div>
     </div>
+
+    <Modal :open="createOpen" title="Новое дело" @close="createOpen = false">
+      <form class="stack" @submit.prevent="create">
+        <p v-if="formError" class="alert">{{ formError }}</p>
+        <label>Название <input v-model="form.title" required maxlength="120" placeholder="Собрать портфель" /></label>
+        <div class="field-grid field-grid--2">
+          <label>
+            Исполнитель
+            <select v-model="form.assigneeMemberId" required>
+              <option v-for="member in members" :key="member.id" :value="member.id">{{ member.name }}</option>
+            </select>
+          </label>
+          <label>
+            Повтор
+            <select v-model="form.recurrence">
+              <option v-for="item in TASK_RECURRENCE" :key="item.value" :value="item.value">{{ item.label }}</option>
+            </select>
+          </label>
+        </div>
+        <label>Срок <input v-model="form.dueAt" type="datetime-local" required /></label>
+        <button class="btn" type="submit" :disabled="formLoading">Добавить</button>
+      </form>
+    </Modal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
 import { api, getApiError } from "@/api/client";
+import Modal from "@/components/Modal.vue";
 import { TASK_RECURRENCE, type Task, type TaskRecurrence } from "@/lib/tasks";
 import { familyNow, formatDate, formatTime, fromDatetimeLocal, hm, ymd } from "@/lib/time";
 import { useAuthStore } from "@/stores/auth";
@@ -66,8 +69,10 @@ const tz = computed(() => auth.me?.family.timezone ?? "UTC");
 const items = ref<Task[]>([]);
 const members = ref<{ id: string; name: string }[]>([]);
 const error = ref("");
-const loading = ref(false);
 const onlyOpen = ref(true);
+const createOpen = ref(false);
+const formError = ref("");
+const formLoading = ref(false);
 const form = reactive({
   title: "",
   assigneeMemberId: "",
@@ -79,6 +84,11 @@ function when(item: Task) {
   const assignee = members.value.find((m) => m.id === item.assigneeMemberId)?.name;
   const date = `${formatDate(item.dueAt, tz.value)} ${formatTime(item.dueAt, tz.value)}`;
   return assignee && auth.isAdult ? `${assignee} · ${date}` : date;
+}
+
+function defaultDueAt() {
+  const now = familyNow(tz.value).set({ second: 0, millisecond: 0 });
+  return `${ymd(now)}T${hm(now)}`;
 }
 
 async function load() {
@@ -98,15 +108,23 @@ async function load() {
 }
 
 onMounted(() => {
-  const now = familyNow(tz.value).set({ second: 0, millisecond: 0 });
-  form.dueAt = `${ymd(now)}T${hm(now)}`;
+  form.dueAt = defaultDueAt();
   void load();
 });
 
+function openCreate() {
+  formError.value = "";
+  form.title = "";
+  form.recurrence = "NONE";
+  form.dueAt = defaultDueAt();
+  if (auth.me) form.assigneeMemberId = auth.me.member.id;
+  createOpen.value = true;
+}
+
 async function create() {
   if (!auth.me) return;
-  error.value = "";
-  loading.value = true;
+  formError.value = "";
+  formLoading.value = true;
   try {
     await api.post("/tasks", {
       title: form.title,
@@ -114,12 +132,12 @@ async function create() {
       dueAt: fromDatetimeLocal(form.dueAt, tz.value),
       recurrence: form.recurrence,
     });
-    form.title = "";
+    createOpen.value = false;
     await load();
   } catch (err) {
-    error.value = getApiError(err).message;
+    formError.value = getApiError(err).message;
   } finally {
-    loading.value = false;
+    formLoading.value = false;
   }
 }
 
@@ -136,10 +154,6 @@ async function toggle(item: Task, checked: boolean) {
 </script>
 
 <style scoped lang="scss">
-.add-form {
-  padding-top: 4px;
-}
-
 .hide {
   display: flex;
   align-items: center;

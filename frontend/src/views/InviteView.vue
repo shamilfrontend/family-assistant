@@ -14,10 +14,10 @@
         <p v-else class="muted">Будет создана новая карточка</p>
         <form class="stack" @submit.prevent="onSubmit">
           <p v-if="error" class="alert">{{ error }}</p>
-          <label v-if="needsProfile">Имя <input v-model="name" required maxlength="80" /></label>
+          <label v-if="needsProfile">Имя <input v-model="name" required maxlength="80" placeholder="Анна" /></label>
           <label v-if="needsProfile">Дата рождения <input v-model="birthDate" type="date" required /></label>
-          <label>Email <input v-model="email" type="email" required /></label>
-          <label>Пароль <input v-model="password" type="password" minlength="8" maxlength="72" required /></label>
+          <label>Email <input v-model="email" type="email" required placeholder="anna@mail.ru" /></label>
+          <label>Пароль <input v-model="password" type="password" minlength="8" maxlength="72" required placeholder="не меньше 8 символов" /></label>
           <label v-if="preview.role === 'ADULT'" class="checkbox">
             <input v-model="declaredAdult" type="checkbox" />
             Мне есть 18 лет

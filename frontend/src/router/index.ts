@@ -14,21 +14,13 @@ const router = createRouter({
       children: [
         { path: "", component: () => import("@/views/TodayView.vue") },
         { path: "calendar", component: () => import("@/views/CalendarView.vue") },
-        {
-          path: "calendar/events/new",
-          component: () => import("@/views/EventFormView.vue"),
-          meta: { adult: true },
-        },
+        { path: "calendar/events/new", redirect: "/calendar" },
         { path: "calendar/events/:id", component: () => import("@/views/EventDetailView.vue") },
         { path: "purchases", component: () => import("@/views/PurchasesView.vue") },
         { path: "tasks", component: () => import("@/views/TasksView.vue") },
         { path: "tasks/:id", component: () => import("@/views/TaskDetailView.vue") },
         { path: "documents", component: () => import("@/views/DocumentsView.vue") },
-        {
-          path: "documents/new",
-          component: () => import("@/views/DocumentFormView.vue"),
-          meta: { adult: true },
-        },
+        { path: "documents/new", redirect: "/documents" },
         { path: "documents/:id", component: () => import("@/views/DocumentDetailView.vue") },
         { path: "health", component: () => import("@/views/HealthView.vue") },
         { path: "health/:memberId", component: () => import("@/views/HealthMemberView.vue") },

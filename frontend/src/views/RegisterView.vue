@@ -7,10 +7,10 @@
         <p class="muted">Создаётся семья и ваша карточка взрослого</p>
       </div>
       <p v-if="error" class="alert">{{ error }}</p>
-      <label>Имя <input v-model="name" required maxlength="80" /></label>
+      <label>Имя <input v-model="name" required maxlength="80" placeholder="Анна" /></label>
       <label>Дата рождения <input v-model="birthDate" type="date" required /></label>
-      <label>Email <input v-model="email" type="email" autocomplete="email" required /></label>
-      <label>Пароль <input v-model="password" type="password" minlength="8" maxlength="72" required /></label>
+      <label>Email <input v-model="email" type="email" autocomplete="email" required placeholder="anna@mail.ru" /></label>
+      <label>Пароль <input v-model="password" type="password" minlength="8" maxlength="72" required placeholder="не меньше 8 символов" /></label>
       <label>
         Часовой пояс
         <select v-model="timezone">

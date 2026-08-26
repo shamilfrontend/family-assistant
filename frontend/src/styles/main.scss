@@ -205,6 +205,12 @@ textarea:focus {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
 .checkbox {
   display: flex;
   align-items: center;
@@ -346,13 +352,20 @@ legend {
   margin-bottom: 4px;
 }
 
+.section-head h1,
 .section-head h2 {
   margin: 0;
 }
 
-.section-head a {
+.section-head a,
+.section-head button {
   font-size: 0.9rem;
   font-weight: 700;
+  color: var(--accent-text);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
 }
 
 .empty {
@@ -455,6 +468,13 @@ legend {
   box-shadow: var(--shadow-soft);
   transition: transform 0.18s ease, box-shadow 0.18s ease;
   animation: page-in 0.45s ease both;
+}
+
+button.action-card {
+  width: 100%;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
 }
 
 .action-card:nth-child(2) {

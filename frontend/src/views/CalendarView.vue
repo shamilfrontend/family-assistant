@@ -1,9 +1,9 @@
 <template>
   <div class="page page--wide stack">
     <div class="card stack">
-      <div class="row head">
+      <div class="section-head">
         <h1>Календарь</h1>
-        <RouterLink v-if="auth.isAdult" class="btn" to="/calendar/events/new">Добавить</RouterLink>
+        <button v-if="auth.isAdult" type="button" @click="createOpen = true">Добавить</button>
       </div>
       <p v-if="error" class="alert">{{ error }}</p>
 
@@ -53,11 +53,11 @@
     <div class="card stack">
       <div class="section-head">
         <h2>{{ listTitle }}</h2>
-        <RouterLink v-if="auth.isAdult" to="/calendar/events/new">Добавить</RouterLink>
+        <button v-if="auth.isAdult" type="button" @click="createOpen = true">Добавить</button>
       </div>
       <div v-if="visibleItems.length === 0" class="empty">
         <p class="muted">Нет событий на этот период.</p>
-        <RouterLink v-if="auth.isAdult" class="btn" to="/calendar/events/new">Добавить событие</RouterLink>
+        <button v-if="auth.isAdult" class="btn" type="button" @click="createOpen = true">Добавить событие</button>
       </div>
       <div v-else class="list">
         <RouterLink v-for="item in visibleItems" :key="item.id + item.occurrenceStart" :to="eventLink(item)">
@@ -69,6 +69,13 @@
         </RouterLink>
       </div>
     </div>
+
+    <EventFormModal
+      :open="createOpen"
+      :default-date="auth.isAdult ? selectedDay : undefined"
+      @close="createOpen = false"
+      @created="load"
+    />
   </div>
 </template>
 
@@ -76,6 +83,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { DateTime } from "luxon";
 import { api, getApiError } from "@/api/client";
+import EventFormModal from "@/components/EventFormModal.vue";
 import { eventLink, typeLabel, type Occurrence } from "@/lib/events";
 import { familyNow, formatDate, formatMonthTitle, formatTime, fromIso, monthGrid, ymd } from "@/lib/time";
 import { useAuthStore } from "@/stores/auth";
@@ -84,6 +92,7 @@ const weekdays = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"];
 const auth = useAuthStore();
 const tz = computed(() => auth.me?.family.timezone ?? "UTC");
 const error = ref("");
+const createOpen = ref(false);
 const items = ref<Occurrence[]>([]);
 const members = ref<{ id: string; name: string }[]>([]);
 const memberId = ref("");
@@ -181,11 +190,6 @@ watch([cursor, tz], load);
 </script>
 
 <style scoped lang="scss">
-.head {
-  justify-content: space-between;
-  align-items: center;
-}
-
 .filter,
 .month-nav {
   max-width: 360px;

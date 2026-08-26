@@ -32,7 +32,7 @@
               <option v-for="item in DOCUMENT_TYPES" :key="item.value" :value="item.value">{{ item.label }}</option>
             </select>
           </label>
-          <label>Номер <input v-model="form.number" maxlength="80" /></label>
+          <label>Номер <input v-model="form.number" maxlength="80" placeholder="1234 567890" /></label>
           <label>Дата окончания <input v-model="form.expiresAt" type="date" required /></label>
           <div class="row">
             <button class="btn" type="submit" :disabled="loading">Сохранить</button>

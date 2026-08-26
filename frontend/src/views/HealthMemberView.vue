@@ -19,7 +19,10 @@
       </div>
 
       <section v-for="group in groups" :key="group.kind" class="card stack">
-        <h2>{{ group.label }}</h2>
+        <div class="section-head">
+          <h2>{{ group.label }}</h2>
+          <button v-if="auth.isAdult" type="button" @click="startCreate(group.kind)">Добавить</button>
+        </div>
         <div v-if="group.items.length === 0" class="empty">
           <p class="muted">Пока пусто.</p>
         </div>
@@ -47,39 +50,36 @@
         </div>
       </section>
 
-      <form v-if="auth.isAdult" class="card stack" @submit.prevent="save">
-        <h2>{{ editingId ? "Правка записи" : "Новая запись" }}</h2>
-        <label>
-          Вид
-          <select v-model="form.kind">
-            <option v-for="item in HEALTH_KINDS" :key="item.value" :value="item.value">{{ item.label }}</option>
-          </select>
-        </label>
-        <template v-if="form.kind === 'DOCTOR'">
-          <label>Имя врача <input v-model="form.doctorName" required maxlength="120" /></label>
-          <label>Специальность <input v-model="form.specialty" required maxlength="120" /></label>
-          <label>Телефон <input v-model="form.phone" maxlength="120" /></label>
-        </template>
-        <template v-else-if="form.kind === 'VACCINATION'">
-          <label>Название <input v-model="form.vaccineName" required maxlength="120" /></label>
-          <label>Дата <input v-model="form.vaccinatedAt" type="date" required /></label>
-        </template>
-        <template v-else-if="form.kind === 'CHECKUP'">
-          <label>Тип осмотра <input v-model="form.checkupType" required maxlength="120" /></label>
-          <label>Дата <input v-model="form.checkupAt" type="date" required /></label>
-          <label>Заметка <textarea v-model="form.note" rows="2" /></label>
-        </template>
-        <template v-else>
-          <label>Название <input v-model="form.appointmentTitle" required maxlength="120" /></label>
-          <label>Дата и время <input v-model="form.appointmentAt" type="datetime-local" required /></label>
-        </template>
-        <div class="row">
+      <Modal :open="formOpen" :title="editingId ? 'Правка записи' : 'Новая запись'" @close="closeForm">
+        <form class="stack" @submit.prevent="save">
+          <p v-if="formError" class="alert">{{ formError }}</p>
+          <label>
+            Вид
+            <select v-model="form.kind">
+              <option v-for="item in HEALTH_KINDS" :key="item.value" :value="item.value">{{ item.label }}</option>
+            </select>
+          </label>
+          <template v-if="form.kind === 'DOCTOR'">
+            <label>Имя врача <input v-model="form.doctorName" required maxlength="120" placeholder="Иванова А. С." /></label>
+            <label>Специальность <input v-model="form.specialty" required maxlength="120" placeholder="педиатр" /></label>
+            <label>Телефон <input v-model="form.phone" maxlength="120" placeholder="+7 900 123-45-67" /></label>
+          </template>
+          <template v-else-if="form.kind === 'VACCINATION'">
+            <label>Название <input v-model="form.vaccineName" required maxlength="120" placeholder="АКДС" /></label>
+            <label>Дата <input v-model="form.vaccinatedAt" type="date" required /></label>
+          </template>
+          <template v-else-if="form.kind === 'CHECKUP'">
+            <label>Тип осмотра <input v-model="form.checkupType" required maxlength="120" placeholder="диспансеризация" /></label>
+            <label>Дата <input v-model="form.checkupAt" type="date" required /></label>
+            <label>Заметка <textarea v-model="form.note" rows="2" placeholder="взять справку" /></label>
+          </template>
+          <template v-else>
+            <label>Название <input v-model="form.appointmentTitle" required maxlength="120" placeholder="Стоматолог" /></label>
+            <label>Дата и время <input v-model="form.appointmentAt" type="datetime-local" required /></label>
+          </template>
           <button class="btn" type="submit" :disabled="loading">{{ editingId ? "Сохранить" : "Добавить" }}</button>
-          <button v-if="editingId" class="btn btn--ghost" type="button" :disabled="loading" @click="resetForm">
-            Отмена
-          </button>
-        </div>
-      </form>
+        </form>
+      </Modal>
     </template>
     <p v-else-if="error" class="alert">{{ error }}</p>
   </div>
@@ -89,6 +89,7 @@
 import { computed, reactive, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { api, getApiError } from "@/api/client";
+import Modal from "@/components/Modal.vue";
 import {
   HEALTH_KINDS,
   emptyHealthForm,
@@ -119,6 +120,8 @@ const denied = ref("");
 const loading = ref(false);
 const pageLoading = ref(true);
 const editingId = ref<string | null>(null);
+const formOpen = ref(false);
+const formError = ref("");
 const form = reactive(emptyHealthForm());
 
 const tz = computed(() => auth.me?.family.timezone ?? "UTC");
@@ -168,13 +171,28 @@ function resetForm() {
   Object.assign(form, emptyHealthForm());
 }
 
+function closeForm() {
+  formOpen.value = false;
+  formError.value = "";
+  resetForm();
+}
+
+function startCreate(kind: HealthKind) {
+  resetForm();
+  formError.value = "";
+  Object.assign(form, emptyHealthForm(kind));
+  formOpen.value = true;
+}
+
 function startEdit(item: HealthRecord) {
   if (!auth.isAdult) return;
+  formError.value = "";
   editingId.value = item.id;
   Object.assign(
     form,
     formFromRecord(item, item.appointmentAt ? toDatetimeLocal(item.appointmentAt, tz.value) : ""),
   );
+  formOpen.value = true;
 }
 
 function appointmentIso() {
@@ -212,6 +230,7 @@ watch(() => route.params.memberId, load, { immediate: true });
 async function save() {
   const memberId = String(route.params.memberId);
   error.value = "";
+  formError.value = "";
   notice.value = "";
   loading.value = true;
   try {
@@ -223,9 +242,10 @@ async function save() {
       await api.post("/health-records", payload);
       notice.value = "Добавлено";
     }
+    formOpen.value = false;
     await load();
   } catch (err) {
-    error.value = getApiError(err).message;
+    formError.value = getApiError(err).message;
   } finally {
     loading.value = false;
   }
@@ -237,7 +257,7 @@ async function remove(item: HealthRecord) {
   error.value = "";
   try {
     await api.delete(`/health-records/${item.id}`);
-    if (editingId.value === item.id) resetForm();
+    if (editingId.value === item.id) closeForm();
     items.value = items.value.filter((row) => row.id !== item.id);
     notice.value = "Удалено";
   } catch (err) {

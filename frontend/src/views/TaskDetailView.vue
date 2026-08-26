@@ -23,7 +23,7 @@
       <template v-if="auth.isAdult">
         <hr class="divider" />
         <form class="stack" @submit.prevent="save">
-          <label>Название <input v-model="form.title" required maxlength="120" /></label>
+          <label>Название <input v-model="form.title" required maxlength="120" placeholder="Собрать портфель" /></label>
           <label>
             Исполнитель
             <select v-model="form.assigneeMemberId">

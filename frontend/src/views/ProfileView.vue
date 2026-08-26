@@ -17,11 +17,11 @@
         <p v-if="card.allergies">Особенности: {{ card.allergies }}</p>
       </template>
       <form v-if="auth.isAdult && card" class="stack" @submit.prevent="save">
-        <label>Имя <input v-model="form.name" required maxlength="80" /></label>
+        <label>Имя <input v-model="form.name" required maxlength="80" placeholder="Анна" /></label>
         <label>Дата рождения <input v-model="form.birthDate" type="date" required /></label>
-        <label>Телефон <input v-model="form.phone" /></label>
-        <label>Контактный email <input v-model="form.email" type="email" /></label>
-        <label>Аллергии и особенности <textarea v-model="form.allergies" rows="3" /></label>
+        <label>Телефон <input v-model="form.phone" placeholder="+7 900 123-45-67" /></label>
+        <label>Контактный email <input v-model="form.email" type="email" placeholder="anna@mail.ru" /></label>
+        <label>Аллергии и особенности <textarea v-model="form.allergies" rows="3" placeholder="орехи, лактоза" /></label>
         <button class="btn" type="submit" :disabled="loading">Сохранить</button>
       </form>
     </div>

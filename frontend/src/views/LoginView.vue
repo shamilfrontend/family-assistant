@@ -7,8 +7,8 @@
         <p class="muted">Семейный ассистент для общего календаря</p>
       </div>
       <p v-if="error" class="alert">{{ error }}</p>
-      <label>Email <input v-model="email" type="email" autocomplete="email" required /></label>
-      <label>Пароль <input v-model="password" type="password" autocomplete="current-password" required /></label>
+      <label>Email <input v-model="email" type="email" autocomplete="email" required placeholder="anna@mail.ru" /></label>
+      <label>Пароль <input v-model="password" type="password" autocomplete="current-password" required placeholder="ваш пароль" /></label>
       <button class="btn" type="submit" :disabled="loading">Войти</button>
       <p class="auth-footer muted">
         Нет аккаунта?

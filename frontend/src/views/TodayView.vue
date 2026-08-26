@@ -7,13 +7,13 @@
     </header>
 
     <div v-if="auth.isAdult" class="actions-grid">
-      <RouterLink class="action-card action-card--primary" to="/calendar/events/new">
+      <button class="action-card action-card--primary" type="button" @click="createOpen = true">
         <div>
           <p class="action-title">Добавить событие</p>
           <p class="action-sub">В календарь семьи</p>
         </div>
         <span class="action-arrow" aria-hidden="true">→</span>
-      </RouterLink>
+      </button>
       <RouterLink class="action-card action-card--secondary" to="/calendar">
         <div>
           <p class="action-title">Открыть календарь</p>
@@ -29,7 +29,7 @@
       <section class="card stack">
         <div class="section-head">
           <h2>Сегодня</h2>
-          <RouterLink v-if="auth.isAdult" to="/calendar/events/new">Добавить</RouterLink>
+          <button v-if="auth.isAdult" type="button" @click="createOpen = true">Добавить</button>
         </div>
         <div v-if="today.length === 0" class="empty">
           <p class="muted">На сегодня событий нет.</p>
@@ -90,12 +90,15 @@
         </div>
       </section>
     </template>
+
+    <EventFormModal :open="createOpen" :default-date="todayYmd" @close="createOpen = false" @created="load" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { api, getApiError } from "@/api/client";
+import EventFormModal from "@/components/EventFormModal.vue";
 import { documentTypeLabel, type FamilyDocument } from "@/lib/documents";
 import { eventLink, type Occurrence } from "@/lib/events";
 import type { Task } from "@/lib/tasks";
@@ -105,12 +108,14 @@ import { useAuthStore } from "@/stores/auth";
 const auth = useAuthStore();
 const tz = computed(() => auth.me?.family.timezone ?? "UTC");
 const error = ref("");
+const createOpen = ref(false);
 const today = ref<Occurrence[]>([]);
 const soon = ref<Occurrence[]>([]);
 const todayTasks = ref<Task[]>([]);
 const soonDocs = ref<FamilyDocument[]>([]);
 
 const now = computed(() => familyNow(tz.value));
+const todayYmd = computed(() => ymd(now.value));
 
 const weekday = computed(() =>
   now.value.setLocale("ru").toFormat("cccc").replace(/^./, (c) => c.toUpperCase()),
@@ -132,7 +137,12 @@ function whenSoon(item: Occurrence): string {
   return item.allDay ? date : `${date} ${formatTime(item.occurrenceStart, tz.value)}`;
 }
 
-onMounted(async () => {
+onMounted(() => {
+  void load();
+});
+
+async function load() {
+  error.value = "";
   try {
     const { data } = await api.get<{
       today: { events: Occurrence[]; tasks: Task[] };
@@ -146,7 +156,7 @@ onMounted(async () => {
   } catch (err) {
     error.value = getApiError(err).message;
   }
-});
+}
 </script>
 
 <style scoped lang="scss">
