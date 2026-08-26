@@ -57,10 +57,14 @@ export const useAuthStore = defineStore("auth", () => {
     loaded.value = true;
   }
 
-  async function logout() {
-    await api.post("/auth/logout");
+  function clearSession() {
     me.value = null;
   }
 
-  return { me, loaded, isAdult, loadMe, register, login, acceptInvite, logout };
+  async function logout() {
+    await api.post("/auth/logout");
+    clearSession();
+  }
+
+  return { me, loaded, isAdult, loadMe, register, login, acceptInvite, logout, clearSession };
 });

@@ -46,8 +46,7 @@ const router = createRouter({
         },
         {
           path: "family/members",
-          component: () => import("@/views/MembersView.vue"),
-          meta: { adult: true },
+          redirect: "/family",
         },
         {
           path: "family/members/:id",
@@ -56,8 +55,7 @@ const router = createRouter({
         },
         {
           path: "family/invites",
-          component: () => import("@/views/InvitesView.vue"),
-          meta: { adult: true },
+          redirect: "/family",
         },
       ],
     },
@@ -72,6 +70,9 @@ router.beforeEach(async (to) => {
   if (to.meta.guest && auth.me) return { path: "/" };
   if (to.meta.auth && !auth.me) return { path: "/login" };
   if (to.meta.adult && auth.me?.member.role !== "ADULT") return { path: "/" };
+  if (to.path === "/health" && auth.me?.member.role === "CHILD") {
+    return { path: `/health/${auth.me.member.id}` };
+  }
   return true;
 });
 

@@ -265,4 +265,42 @@ describe("health records", () => {
       .set("Cookie", child.sid);
     expect(missing.status).toBe(404);
   });
+
+  it("rejects a too-long doctor phone", async () => {
+    const { sid, memberId } = await register();
+    const res = await request(app).post("/api/v1/health-records").set("Cookie", sid).send({
+      memberId,
+      kind: "DOCTOR",
+      doctorName: "Иванова",
+      specialty: "педиатр",
+      phone: "x".repeat(121),
+    });
+    expect(res.status).toBe(422);
+  });
+
+  it("moves appointment event participant when memberId changes", async () => {
+    const parentAuth = await register();
+    const child = await inviteChild(parentAuth.sid);
+    const at = DateTime.now().setZone(tz).plus({ days: 3 }).set({ hour: 12, minute: 0, second: 0, millisecond: 0 });
+    const created = await request(app).post("/api/v1/health-records").set("Cookie", parentAuth.sid).send({
+      memberId: parentAuth.memberId,
+      kind: "APPOINTMENT",
+      appointmentTitle: "ЛОР",
+      appointmentAt: at.toUTC().toISO(),
+    });
+    expect(created.status).toBe(201);
+
+    const patched = await request(app)
+      .patch(`/api/v1/health-records/${created.body.id}`)
+      .set("Cookie", parentAuth.sid)
+      .send({ memberId: child.memberId });
+    expect(patched.status).toBe(200);
+    expect(patched.body.memberId).toBe(child.memberId);
+
+    const event = await request(app)
+      .get(`/api/v1/events/${created.body.eventId}`)
+      .set("Cookie", parentAuth.sid);
+    expect(event.status).toBe(200);
+    expect(event.body.participantIds).toEqual([child.memberId]);
+  });
 });

@@ -120,6 +120,12 @@ function requiredText(value: unknown, field: string): string {
   return text;
 }
 
+function optionalLimited(value: unknown, field: string): string | null {
+  const text = optionalString(value) ?? null;
+  if (text && text.length > 120) throw validation(`${field}: слишком длинное`);
+  return text;
+}
+
 type HealthFields = typeof EMPTY_FIELDS;
 
 function fieldsForKind(
@@ -132,7 +138,7 @@ function fieldsForKind(
     case "DOCTOR":
       if (!partial || body.doctorName !== undefined) fields.doctorName = requiredText(body.doctorName, "имя врача");
       if (!partial || body.specialty !== undefined) fields.specialty = requiredText(body.specialty, "специальность");
-      if (!partial || body.phone !== undefined) fields.phone = optionalString(body.phone) ?? null;
+      if (!partial || body.phone !== undefined) fields.phone = optionalLimited(body.phone, "телефон");
       break;
     case "VACCINATION":
       if (!partial || body.vaccineName !== undefined) {

@@ -1,7 +1,11 @@
 <template>
   <div class="page stack">
-    <RouterLink class="back-link" to="/family/members">← К списку</RouterLink>
-    <div v-if="card" class="card stack">
+    <RouterLink class="back-link" to="/family">← К списку</RouterLink>
+    <div v-if="denied" class="card stack">
+      <h1>{{ denied }}</h1>
+      <p class="muted">Карточка недоступна.</p>
+    </div>
+    <div v-else-if="card" class="card stack">
       <div class="meta-row">
         <span class="badge" :class="card.role === 'ADULT' ? 'badge--blue' : 'badge--lavender'">
           {{ card.role === "ADULT" ? "взрослый" : "ребёнок" }}
@@ -36,6 +40,7 @@
         Удалить карточку
       </button>
     </div>
+    <p v-else-if="error" class="alert">{{ error }}</p>
   </div>
 </template>
 
@@ -58,6 +63,7 @@ type Card = {
 const route = useRoute();
 const router = useRouter();
 const card = ref<Card | null>(null);
+const denied = ref("");
 const error = ref("");
 const notice = ref("");
 const loading = ref(false);
@@ -71,14 +77,21 @@ const form = reactive({
 });
 
 onMounted(async () => {
-  const { data } = await api.get<Card>(`/members/${route.params.id}`);
-  card.value = data;
-  form.name = data.name;
-  form.role = data.role;
-  form.birthDate = data.birthDate;
-  form.phone = data.phone ?? "";
-  form.email = data.email ?? "";
-  form.allergies = data.allergies ?? "";
+  try {
+    const { data } = await api.get<Card>(`/members/${route.params.id}`);
+    card.value = data;
+    form.name = data.name;
+    form.role = data.role;
+    form.birthDate = data.birthDate;
+    form.phone = data.phone ?? "";
+    form.email = data.email ?? "";
+    form.allergies = data.allergies ?? "";
+  } catch (err) {
+    const apiErr = getApiError(err);
+    if (apiErr.code === "not_found") denied.value = "Не найдено";
+    else if (apiErr.code === "forbidden") denied.value = "Нет доступа";
+    else error.value = apiErr.message;
+  }
 });
 
 async function save() {
@@ -109,7 +122,7 @@ async function removeCard() {
   loading.value = true;
   try {
     await api.delete(`/members/${route.params.id}`);
-    await router.push("/family/members");
+    await router.push("/family");
   } catch (err) {
     error.value = getApiError(err).message;
   } finally {

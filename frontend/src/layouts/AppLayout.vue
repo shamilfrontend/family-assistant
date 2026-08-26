@@ -76,25 +76,7 @@
                 <path d="M14 14.2c1.5-.5 3.2-.3 4.8 1.3.6.6 1 1.4 1.2 2.5" stroke-linecap="round" />
               </svg>
             </span>
-            Семья
-          </RouterLink>
-          <RouterLink to="/family/members">
-            <span class="nav-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <circle cx="12" cy="8" r="3.25" />
-                <path d="M5 19.5c1.2-3.2 3.5-4.8 7-4.8s5.8 1.6 7 4.8" stroke-linecap="round" />
-              </svg>
-            </span>
-            Участники
-          </RouterLink>
-          <RouterLink to="/family/invites">
-            <span class="nav-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                <rect x="3.5" y="6" width="17" height="12" rx="2" />
-                <path d="m4 7.5 8 5.5 8-5.5" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-            </span>
-            Приглашения
+            Настройка семьи
           </RouterLink>
         </template>
         <RouterLink to="/profile">
@@ -184,9 +166,7 @@
           {{ auth.isAdult ? "Здоровье" : "Моё здоровье" }}
         </RouterLink>
         <template v-if="auth.isAdult">
-          <RouterLink to="/family" @click="moreOpen = false">Семья</RouterLink>
-          <RouterLink to="/family/members" @click="moreOpen = false">Участники</RouterLink>
-          <RouterLink to="/family/invites" @click="moreOpen = false">Приглашения</RouterLink>
+          <RouterLink to="/family" @click="moreOpen = false">Настройка семьи</RouterLink>
         </template>
         <RouterLink to="/profile" @click="moreOpen = false">Профиль</RouterLink>
       </div>

@@ -23,70 +23,73 @@
       </RouterLink>
     </div>
 
-    <section class="card stack">
-      <div class="section-head">
-        <h2>Сегодня</h2>
-        <RouterLink v-if="auth.isAdult" to="/calendar/events/new">Добавить</RouterLink>
-      </div>
-      <p v-if="error" class="alert">{{ error }}</p>
-      <div v-else-if="today.length === 0" class="empty">
-        <p class="muted">На сегодня событий нет.</p>
-      </div>
-      <div v-else class="list">
-        <RouterLink v-for="item in today" :key="item.id + item.occurrenceStart" :to="eventLink(item)">
-          <span>{{ item.title }}</span>
-          <span class="muted meta">{{ item.allDay ? "весь день" : formatTime(item.occurrenceStart, tz) }}</span>
-        </RouterLink>
-      </div>
-    </section>
+    <p v-if="error" class="alert">{{ error }}</p>
 
-    <section class="card stack">
-      <div class="section-head">
-        <h2>Дела на сегодня</h2>
-        <RouterLink to="/tasks">Все</RouterLink>
-      </div>
-      <div v-if="todayTasks.length === 0" class="empty">
-        <p class="muted">Открытых дел на сегодня нет.</p>
-      </div>
-      <div v-else class="list">
-        <RouterLink v-for="item in todayTasks" :key="item.id" :to="`/tasks/${item.id}`">
-          <span>{{ item.title }}</span>
-          <span class="muted meta">{{ formatTime(item.dueAt, tz) }}</span>
-        </RouterLink>
-      </div>
-    </section>
+    <template v-else>
+      <section class="card stack">
+        <div class="section-head">
+          <h2>Сегодня</h2>
+          <RouterLink v-if="auth.isAdult" to="/calendar/events/new">Добавить</RouterLink>
+        </div>
+        <div v-if="today.length === 0" class="empty">
+          <p class="muted">На сегодня событий нет.</p>
+        </div>
+        <div v-else class="list">
+          <RouterLink v-for="item in today" :key="item.id + item.occurrenceStart" :to="eventLink(item)">
+            <span>{{ item.title }}</span>
+            <span class="muted meta">{{ item.allDay ? "весь день" : formatTime(item.occurrenceStart, tz) }}</span>
+          </RouterLink>
+        </div>
+      </section>
 
-    <section class="card stack">
-      <div class="section-head">
-        <h2>Скоро</h2>
-        <RouterLink to="/calendar">Все</RouterLink>
-      </div>
-      <div v-if="soon.length === 0" class="empty">
-        <p class="muted">Нет напоминаний на ближайшие дни.</p>
-      </div>
-      <div v-else class="list">
-        <RouterLink v-for="item in soon" :key="item.id + item.occurrenceStart" :to="eventLink(item)">
-          <span>{{ item.title }}</span>
-          <span class="muted meta">{{ whenSoon(item) }}</span>
-        </RouterLink>
-      </div>
-    </section>
+      <section class="card stack">
+        <div class="section-head">
+          <h2>Дела на сегодня</h2>
+          <RouterLink to="/tasks">Все</RouterLink>
+        </div>
+        <div v-if="todayTasks.length === 0" class="empty">
+          <p class="muted">Открытых дел на сегодня нет.</p>
+        </div>
+        <div v-else class="list">
+          <RouterLink v-for="item in todayTasks" :key="item.id" :to="`/tasks/${item.id}`">
+            <span>{{ item.title }}</span>
+            <span class="muted meta">{{ formatTime(item.dueAt, tz) }}</span>
+          </RouterLink>
+        </div>
+      </section>
 
-    <section class="card stack">
-      <div class="section-head">
-        <h2>Документы скоро истекают</h2>
-        <RouterLink to="/documents">Все</RouterLink>
-      </div>
-      <div v-if="soonDocs.length === 0" class="empty">
-        <p class="muted">Нет документов с истечением в ближайшие 30 дней.</p>
-      </div>
-      <div v-else class="list">
-        <RouterLink v-for="item in soonDocs" :key="item.id" :to="`/documents/${item.id}`">
-          <span>{{ documentTypeLabel(item.type) }}</span>
-          <span class="muted meta">{{ item.expiresAt }}</span>
-        </RouterLink>
-      </div>
-    </section>
+      <section class="card stack">
+        <div class="section-head">
+          <h2>Скоро</h2>
+          <RouterLink to="/calendar">Все</RouterLink>
+        </div>
+        <div v-if="soon.length === 0" class="empty">
+          <p class="muted">Нет напоминаний на ближайшие дни.</p>
+        </div>
+        <div v-else class="list">
+          <RouterLink v-for="item in soon" :key="item.id + item.occurrenceStart" :to="eventLink(item)">
+            <span>{{ item.title }}</span>
+            <span class="muted meta">{{ whenSoon(item) }}</span>
+          </RouterLink>
+        </div>
+      </section>
+
+      <section class="card stack">
+        <div class="section-head">
+          <h2>Документы скоро истекают</h2>
+          <RouterLink to="/documents">Все</RouterLink>
+        </div>
+        <div v-if="soonDocs.length === 0" class="empty">
+          <p class="muted">Нет документов с истечением в ближайшие 30 дней.</p>
+        </div>
+        <div v-else class="list">
+          <RouterLink v-for="item in soonDocs" :key="item.id" :to="`/documents/${item.id}`">
+            <span>{{ documentTypeLabel(item.type) }}</span>
+            <span class="muted meta">{{ item.expiresAt }}</span>
+          </RouterLink>
+        </div>
+      </section>
+    </template>
   </div>
 </template>
 

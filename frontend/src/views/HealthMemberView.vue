@@ -5,6 +5,7 @@
       <h1>{{ denied }}</h1>
       <p class="muted">Здоровье недоступно.</p>
     </div>
+    <p v-else-if="pageLoading" class="muted">Загрузка…</p>
     <template v-else-if="member">
       <div class="card stack">
         <div class="section-head">
@@ -57,7 +58,7 @@
         <template v-if="form.kind === 'DOCTOR'">
           <label>Имя врача <input v-model="form.doctorName" required maxlength="120" /></label>
           <label>Специальность <input v-model="form.specialty" required maxlength="120" /></label>
-          <label>Телефон <input v-model="form.phone" /></label>
+          <label>Телефон <input v-model="form.phone" maxlength="120" /></label>
         </template>
         <template v-else-if="form.kind === 'VACCINATION'">
           <label>Название <input v-model="form.vaccineName" required maxlength="120" /></label>
@@ -80,6 +81,7 @@
         </div>
       </form>
     </template>
+    <p v-else-if="error" class="alert">{{ error }}</p>
   </div>
 </template>
 
@@ -115,6 +117,7 @@ const error = ref("");
 const notice = ref("");
 const denied = ref("");
 const loading = ref(false);
+const pageLoading = ref(true);
 const editingId = ref<string | null>(null);
 const form = reactive(emptyHealthForm());
 
@@ -123,16 +126,32 @@ const groups = computed(() =>
   (["DOCTOR", "VACCINATION", "CHECKUP", "APPOINTMENT"] as HealthKind[]).map((kind) => ({
     kind,
     label: healthKindLabel(kind),
-    items: items.value.filter((item) => item.kind === kind),
+    items: sortRecords(kind, items.value.filter((item) => item.kind === kind)),
   })),
 );
+
+function sortRecords(kind: HealthKind, rows: HealthRecord[]) {
+  const copy = [...rows];
+  if (kind === "DOCTOR") {
+    return copy.sort((a, b) => (a.doctorName ?? "").localeCompare(b.doctorName ?? "", "ru"));
+  }
+  if (kind === "VACCINATION") {
+    return copy.sort((a, b) => (b.vaccinatedAt ?? "").localeCompare(a.vaccinatedAt ?? ""));
+  }
+  if (kind === "CHECKUP") {
+    return copy.sort((a, b) => (b.checkupAt ?? "").localeCompare(a.checkupAt ?? ""));
+  }
+  return copy.sort((a, b) => (b.appointmentAt ?? "").localeCompare(a.appointmentAt ?? ""));
+}
 
 function recordMeta(item: HealthRecord) {
   if (item.kind === "DOCTOR") {
     return [item.specialty, item.phone].filter(Boolean).join(" · ");
   }
   if (item.kind === "VACCINATION") return item.vaccinatedAt ?? "";
-  if (item.kind === "CHECKUP") return item.checkupAt ?? "";
+  if (item.kind === "CHECKUP") {
+    return [item.checkupAt, item.note].filter(Boolean).join(" · ");
+  }
   if (item.appointmentAt) {
     return `${formatDate(item.appointmentAt, tz.value)} ${formatTime(item.appointmentAt, tz.value)}`;
   }
@@ -168,6 +187,7 @@ async function load() {
   error.value = "";
   member.value = null;
   items.value = [];
+  pageLoading.value = true;
   const memberId = String(route.params.memberId);
   try {
     const [card, records] = await Promise.all([
@@ -182,6 +202,8 @@ async function load() {
     if (apiErr.code === "not_found") denied.value = "Не найдено";
     else if (apiErr.code === "forbidden") denied.value = "Нет доступа";
     else error.value = apiErr.message;
+  } finally {
+    pageLoading.value = false;
   }
 }
 

@@ -206,6 +206,13 @@ function canApply(draft: Draft) {
 function draftStatus(draft: Draft) {
   if (draft.status === "APPLIED") return "применено";
   if (draft.status === "REJECTED") return "отклонено";
+  if (
+    !auth.isAdult &&
+    (draft.operation === "CREATE_EVENT" || draft.operation === "CREATE_TASK")
+  ) {
+    return "только для взрослых";
+  }
+  if (draft.status === "PENDING") return "ожидает подтверждения";
   return draft.status;
 }
 

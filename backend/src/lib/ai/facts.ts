@@ -51,6 +51,7 @@ export async function buildFacts(actor: Actor, timezone: string): Promise<string
 
   const memberById = new Map(members.map((m) => [m.id, m.name]));
   const occurrences = events
+    .filter((event) => event.type !== "HEALTH_APPOINTMENT")
     .flatMap((event) => expandOccurrences(event, today, until, timezone))
     .sort((a, b) => a.occurrenceStart.localeCompare(b.occurrenceStart))
     .map((occ) => ({

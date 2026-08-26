@@ -1,4 +1,5 @@
 import request from "supertest";
+import { DateTime } from "luxon";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../src/lib/ai/client.js", () => ({
@@ -406,6 +407,16 @@ describe("chats and AI drafts", () => {
       vaccineName: "АКДС",
       vaccinatedAt: "2024-04-01",
     });
+    const appointmentAt = DateTime.now()
+      .setZone("Europe/Moscow")
+      .plus({ days: 2 })
+      .set({ hour: 11, minute: 0, second: 0, millisecond: 0 });
+    await request(app).post("/api/v1/health-records").set("Cookie", sid).send({
+      memberId: child.memberId,
+      kind: "APPOINTMENT",
+      appointmentTitle: "ЛОР Димы",
+      appointmentAt: appointmentAt.toUTC().toISO(),
+    });
     await request(app).post("/api/v1/health-records").set("Cookie", sid).send({
       memberId,
       kind: "VACCINATION",
@@ -437,6 +448,16 @@ describe("chats and AI drafts", () => {
     expect(factsMessage?.content).toContain("АКДС");
     expect(factsMessage?.content).toContain("SECRET_VAX_ANNA");
     expect(factsMessage?.content).toContain("пыльца");
+    expect(factsMessage?.content).toContain("ЛОР Димы");
+    const factsRaw = String(factsMessage?.content);
+    const facts = JSON.parse(factsRaw.slice(factsRaw.indexOf("\n") + 1)) as {
+      events: { type: string }[];
+      health: { kind: string; appointmentTitle?: string }[];
+    };
+    expect(facts.events.every((event) => event.type !== "HEALTH_APPOINTMENT")).toBe(true);
+    expect(facts.health.some((record) => record.kind === "APPOINTMENT" && record.appointmentTitle === "ЛОР Димы")).toBe(
+      true,
+    );
 
     const childChats = await request(app).get("/api/v1/chats").set("Cookie", child.sid);
     mockedComplete.mockClear();
